@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cook It NJ — Kitchen Scanner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:        #f4f6fa;
+  --surface:   #ffffff;
+  --surface2:  #f0f3f9;
+  --border:    #e2e7f0;
+  --border2:   #d0d7e6;
+  --green:     #18a85a;
+  --green-dim: rgba(24,168,90,0.10);
+  --blue:      #2563eb;
+  --blue-dim:  rgba(37,99,235,0.09);
+  --orange:    #d97706;
+  --orange-dim:rgba(217,119,6,0.10);
+  --red:       #dc2626;
+  --red-dim:   rgba(220,38,38,0.08);
+  --text:      #1a2036;
+  --muted:     #6b7280;
+  --dim:       #9ca3b0;
+  --r:         10px;
+  --r-sm:      7px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px;
+  background: #1a2036;
+  border-bottom: 1px solid #0f1525;
+  position: sticky; top: 0; z-index: 200;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-badge {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--green) 0%, var(--blue) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; flex-shrink: 0;
+}
+.brand-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: -0.3px; color: #ffffff; }
+.brand-season { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 1px; }
+
+.orders-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 7px 14px; font-size: 12px;
+}
+.orders-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.orders-count { font-family: 'DM Mono', monospace; font-weight: 500; color: #4ade80; }
+
+.mode-pills {
+  display: flex; gap: 4px;
+  background: rgba(0,0,0,0.25); border-radius: 9px; padding: 3px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.pill {
+  padding: 6px 16px; border-radius: 6px; border: none;
+  font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 12px;
+  cursor: pointer; transition: all 0.15s; color: rgba(255,255,255,0.55); background: transparent;
+  white-space: nowrap;
+}
+.pill.p-active { background: var(--green); color: #0a2016; }
+.pill.k-active { background: var(--blue); color: #0a1628; }
+
+/* ── FLASH ── */
+.flash {
+  margin: 14px 28px 0;
+  padding: 11px 16px; border-radius: var(--r-sm);
+  font-weight: 600; font-size: 13px;
+  display: none; animation: slideDown 0.15s ease;
+}
+@keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+.flash.ok  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(61,220,132,0.25); display:block; }
+.flash.err { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(241,107,107,0.25); display:block; }
+.flash.warn{ background: var(--orange-dim);color: var(--orange);border: 1px solid rgba(244,162,74,0.25); display:block; }
+
+/* ── MAIN ── */
+main { flex:1; padding: 20px 28px; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+/* ── CSV LOADER ── */
+.csv-bar {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 18px; margin-bottom: 20px;
+}
+.csv-icon { font-size: 20px; flex-shrink: 0; }
+.csv-text { flex: 1; }
+.csv-title { font-weight: 600; font-size: 13px; }
+.csv-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.csv-btn {
+  padding: 8px 18px; border-radius: var(--r-sm); border: none;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-weight: 600; font-size: 12px; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+}
+.csv-btn:hover { border-color: var(--blue); color: var(--blue); }
+.csv-drop-zone {
+  border: 2px dashed var(--border2); border-radius: var(--r);
+  padding: 28px; text-align: center; cursor: pointer;
+  transition: all 0.2s; display: none; margin-bottom: 20px;
+}
+.csv-drop-zone.visible { display: block; }
+.csv-drop-zone.drag-over { border-color: var(--blue); background: var(--blue-dim); }
+.csv-drop-zone input { display: none; }
+.drop-icon { font-size: 32px; margin-bottom: 10px; }
+.drop-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.drop-sub { font-size: 12px; color: var(--muted); }
+.drop-how {
+  margin-top: 18px; padding: 14px 18px;
+  background: var(--surface2); border-radius: var(--r-sm);
+  text-align: left; font-size: 12px; line-height: 1.8; color: var(--muted);
+}
+.drop-how strong { color: var(--text); }
+
+/* ── SCAN BAR ── */
+.scan-bar {
+  background: var(--surface); border-radius: var(--r);
+  padding: 16px 18px; margin-bottom: 18px;
+  border: 1px solid var(--border);
+}
+.scan-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 9px;
+}
+.scan-row { display: flex; gap: 10px; }
+.scan-input {
+  flex: 1; background: var(--bg); border: 1.5px solid var(--border2);
+  border-radius: var(--r-sm); padding: 11px 15px;
+  font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text);
+  outline: none; transition: border-color 0.15s;
+}
+.scan-input:focus { border-color: var(--green); }
+.scan-input.pack:focus { border-color: var(--blue); }
+.scan-go {
+  padding: 11px 22px; border-radius: var(--r-sm); border: none;
+  font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: all 0.15s;
+}
+.scan-go.prod { background: var(--green); color: #0a2016; }
+.scan-go.pack { background: var(--blue);  color: #0a1628; }
+.scan-go:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+/* ── STAT ROW ── */
+.stat-row { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.stat {
+  flex: 1; min-width: 100px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 12px 16px;
+}
+.stat-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; }
+.stat-val { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 500; margin-top: 3px; }
+.g { color: var(--green); } .b { color: var(--blue); } .o { color: var(--orange); }
+
+/* ── SECTION TITLE ── */
+.sec {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+  margin: 20px 0 10px;
+}
+.sec::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* ── PROD GRID ── */
+.prod-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px; margin-bottom: 4px;
+}
+.pcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 12px 14px;
+  transition: border-color 0.2s;
+}
+.pcard.is-done { border-color: rgba(61,220,132,0.4); background: rgba(61,220,132,0.03); }
+.pcard.is-partial { border-color: rgba(244,162,74,0.35); }
+.pcard-sku { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); margin-bottom: 3px; }
+.pcard-name { font-weight: 600; font-size: 12px; line-height: 1.35; margin-bottom: 2px; }
+.pcard-size { font-size: 10px; color: var(--muted); margin-bottom: 9px; }
+.pcard-counts { display: flex; gap: 6px; }
+.cbox {
+  flex: 1; background: var(--bg); border-radius: 5px;
+  padding: 5px 8px; text-align: center;
+}
+.cbox-lbl { font-size: 8px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--dim); }
+.cbox-num { font-family: 'DM Mono', monospace; font-size: 17px; font-weight: 500; margin-top: 1px; }
+.cbox-num.g { color: var(--green); }
+.cbox-num.o { color: var(--orange); }
+.cbox-num.d { color: var(--dim); }
+
+/* ── ORDER LOAD BAR ── */
+.order-load-bar {
+  display: flex; gap: 10px; margin-bottom: 12px;
+}
+
+/* ── ORDER HEADER ── */
+.order-hdr {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 20px; margin-bottom: 14px;
+  display: none;
+}
+.order-hdr.vis { display: block; }
+.order-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+.ometa-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+.ometa-val { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.prog-track { background: var(--bg); border-radius: 99px; height: 7px; overflow: hidden; }
+.prog-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  transition: width 0.4s ease; width: 0%;
+}
+.prog-text { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+/* ── PACK LIST ── */
+.pack-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
+.pack-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: 11px 15px;
+  transition: border-color 0.2s;
+}
+.pack-row.packed  { border-color: rgba(61,220,132,0.4); background: rgba(61,220,132,0.03); }
+.pack-row.partial { border-color: rgba(244,162,74,0.35); }
+.pack-row.missing { border-color: rgba(241,107,107,0.25); }
+.pack-dot {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+  border: 2px solid var(--border2);
+}
+.pack-row.packed  .pack-dot { border-color: var(--green); background: var(--green-dim); }
+.pack-row.partial .pack-dot { border-color: var(--orange); background: var(--orange-dim); }
+.pack-row.missing .pack-dot { border-color: var(--red); background: var(--red-dim); }
+.pack-info { flex: 1; min-width: 0; }
+.pack-name { font-weight: 600; font-size: 13px; }
+.pack-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.pack-chip {
+  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+  padding: 3px 11px; border-radius: 20px;
+  background: var(--bg); border: 1px solid var(--border2); flex-shrink: 0;
+}
+.pack-chip.done { background: var(--green-dim); color: var(--green); border-color: rgba(61,220,132,0.3); }
+
+/* ── HISTORY ── */
+.hist-list { display: flex; flex-direction: column; gap: 5px; }
+.hist-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--muted);
+  padding: 6px 10px; border-radius: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.hist-time { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--dim); min-width: 58px; }
+.hist-sku { font-family: 'DM Mono', monospace; min-width: 74px; }
+.hist-sku.g { color: var(--green); }
+.hist-sku.b { color: var(--blue); }
+
+/* ── PANEL ── */
+.panel { display: none; }
+.panel.on { display: block; }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty-ico { font-size: 32px; margin-bottom: 10px; }
+.empty-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.empty-sub { font-size: 12px; margin-top: 5px; }
+
+@media(max-width:600px){
+  .prod-grid { grid-template-columns: 1fr 1fr; }
+  .topbar { flex-wrap: wrap; gap: 10px; }
+  main { padding: 14px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-badge">🍳</div>
+    <div>
+      <div class="brand-name">Cook It NJ</div>
+      <div class="brand-season">Shavuos 2026 — Kitchen Scanner</div>
+    </div>
+  </div>
+  <div class="orders-badge">
+    <div class="orders-dot"></div>
+    <span id="orders-loaded-txt" style="color:var(--muted)">No orders loaded</span>
+    <span class="orders-count" id="orders-count" style="display:none"></span>
+  </div>
+  <div class="mode-pills">
+    <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
+    <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<main>
+
+  <!-- CSV LOADER BAR (always visible) -->
+  <div class="csv-bar">
+    <div class="csv-icon">📂</div>
+    <div class="csv-text">
+      <div class="csv-title">Load Orders from Shopify</div>
+      <div class="csv-sub" id="csv-status">No orders loaded — export your orders CSV from Shopify and drop it here</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <button class="csv-btn" onclick="toggleDropZone()">↑ Load CSV</button>
+      <span id="sheet-sync-status" style="font-size:11px;color:var(--muted)">Connecting to Google Sheet...</span>
+    </div>
+  </div>
+
+  <div class="csv-drop-zone" id="drop-zone"
+    ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)"
+    onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" accept=".csv" onchange="fileChosen(event)">
+    <div class="drop-icon">⬇️</div>
+    <div class="drop-title">Drop your Shopify orders CSV here</div>
+    <div class="drop-sub">or click anywhere in this box to browse for the file</div>
+    <div class="drop-how">
+      <strong>How to export from Shopify:</strong><br>
+      1. Go to Shopify Admin → <strong>Orders</strong><br>
+      2. Click <strong>Export</strong> (top right)<br>
+      3. Choose <strong>"Current page"</strong> or <strong>"All orders"</strong> → Export as <strong>CSV for Excel</strong><br>
+      4. Save the file, then drop it here or click to browse
+    </div>
+  </div>
+
+  <!-- ══ PRODUCTION PANEL ══ -->
+  <div class="panel on" id="panel-prod">
+
+    <div class="scan-bar">
+      <div class="scan-label">Production Mode — Scan item as you finish making it</div>
+      <div class="scan-row">
+        <input type="text" class="scan-input" id="prod-input"
+          placeholder="Scan barcode (e.g. APP-001) …"
+          onkeydown="if(event.key==='Enter')prodScan()">
+        <button class="scan-go prod" onclick="prodScan()">Log Item ↵</button>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b" id="s-total">48</div></div>
+      <div class="stat"><div class="stat-lbl">Fully Done</div><div class="stat-val g" id="s-done">0</div></div>
+      <div class="stat"><div class="stat-lbl">In Progress</div><div class="stat-val o" id="s-partial">0</div></div>
+      <div class="stat"><div class="stat-lbl">Not Started</div><div class="stat-val" id="s-zero">48</div></div>
+      <div class="stat"><div class="stat-lbl">Total Scans</div><div class="stat-val" id="s-scans">0</div></div>
+    </div>
+
+    <div id="prod-cats"></div>
+
+    <div class="sec">Recent Scans</div>
+    <div class="hist-list" id="prod-hist">
+      <div class="empty" style="padding:16px"><div class="empty-sub">No scans yet</div></div>
+    </div>
+  </div>
+
+  <!-- ══ PACK PANEL ══ -->
+  <div class="panel" id="panel-pack">
+
+    <div class="scan-bar">
+      <div class="scan-label">Step 1 — Enter order number to load it</div>
+      <div class="order-load-bar">
+        <input type="text" class="scan-input pack" id="order-input"
+          placeholder="Order number (e.g. 54443)"
+          onkeydown="if(event.key==='Enter')loadOrder()">
+        <button class="scan-go pack" onclick="loadOrder()">Load Order ↵</button>
+      </div>
+    </div>
+
+    <div class="order-hdr" id="order-hdr">
+      <div class="order-meta">
+        <div><div class="ometa-lbl">Order</div><div class="ometa-val" id="h-order">—</div></div>
+        <div><div class="ometa-lbl">Customer</div><div class="ometa-val" id="h-cust">—</div></div>
+        <div><div class="ometa-lbl">Line Items</div><div class="ometa-val" id="h-items">—</div></div>
+        <div><div class="ometa-lbl">Status</div><div class="ometa-val" id="h-status">—</div></div>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-text" id="prog-text">0 of 0 items packed</div>
+    </div>
+
+    <div id="pack-scan-wrap" style="display:none">
+      <div class="scan-bar" style="border-color:rgba(37,99,235,0.35); background:#f0f5ff">
+        <div class="scan-label">Step 2 — Scan each item as you place it in the box</div>
+        <div class="scan-row">
+          <input type="text" class="scan-input pack" id="pack-input"
+            placeholder="Scan item barcode …"
+            onkeydown="if(event.key==='Enter')packScan()">
+          <button class="scan-go pack" onclick="packScan()">Scan Item ↵</button>
+        </div>
+      </div>
+      <div class="pack-list" id="pack-list"></div>
+    </div>
+
+    <div class="empty" id="pack-empty">
+      <div class="empty-ico">📦</div>
+      <div class="empty-title">No order loaded</div>
+      <div class="empty-sub">Enter an order number above to start packing</div>
+    </div>
+
+    <div class="sec">Pack History</div>
+    <div class="hist-list" id="pack-hist">
+      <div class="empty" style="padding:16px"><div class="empty-sub">No scans yet</div></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// MASTER SKU LIST — all 48 Shavuos items
+// ═══════════════════════════════════════════════════════
+const SKUS = [
+  {sku:"APP-001",name:"Cabbage Pastrami Eggrolls",    size:"Packed 12",      cat:"Appetizers"},
+  {sku:"APP-002",name:"Glazed Hassleback Kielbasa",   size:"One Kielbasa",   cat:"Appetizers"},
+  {sku:"APP-003",name:"Chicken Wontons",              size:"Packed 12",      cat:"Appetizers"},
+  {sku:"APP-004",name:"Grilled Oyster Steak",         size:"10 Slices",      cat:"Appetizers"},
+  {sku:"APP-005",name:"Sweet Meatballs",              size:"2 lbs",          cat:"Appetizers"},
+  {sku:"APP-006",name:"Barbecue Pulled Brisket",      size:"1 lb",           cat:"Appetizers"},
+  {sku:"SOP-001",name:"Broccoli Zucchini Soup",       size:"2 lbs",          cat:"Soups"},
+  {sku:"SOP-002",name:"Cream of Chicken Soup",        size:"2 lbs",          cat:"Soups"},
+  {sku:"SOP-003",name:"Hearty Flanken Soup",          size:"2 lbs",          cat:"Soups"},
+  {sku:"SOP-004",name:"Smoothie Fruit Soup",          size:"2 lbs Chilled",  cat:"Soups"},
+  {sku:"SOP-005",name:"Split Pea Vegetable Soup",     size:"2 lbs",          cat:"Soups"},
+  {sku:"FSH-001",name:"Panko Crusted Salmon",         size:"12 Cubes",       cat:"Fish"},
+  {sku:"FSH-002",name:"Rainbow Salmon",               size:"Side",           cat:"Fish"},
+  {sku:"FSH-003",name:"Pecan Crusted Salmon",         size:"6 Slices",       cat:"Fish"},
+  {sku:"FSH-004",name:"Salmon Wellington",            size:"6 Pockets",      cat:"Fish"},
+  {sku:"FSH-005",name:"Maple Garlic Salmon",          size:"Side",           cat:"Fish"},
+  {sku:"ENT-001",name:"Chicken Steak Ready to Bake",  size:"Packed 6",       cat:"Entrees"},
+  {sku:"ENT-002",name:"Cornflake Chicken Fingers",    size:"Half 9x13",      cat:"Entrees"},
+  {sku:"ENT-003",name:"Corned Beef Sweet Sauce",      size:"9x13",           cat:"Entrees"},
+  {sku:"ENT-004",name:"French Roast Sweet",           size:"9x13",           cat:"Entrees"},
+  {sku:"ENT-005",name:"French Roast Wine",            size:"9x13",           cat:"Entrees"},
+  {sku:"ENT-006",name:"Beer Braised Riblets",         size:"9x13",           cat:"Entrees"},
+  {sku:"ENT-007",name:"Fruity Flanken Roast Bone In", size:"9x13",           cat:"Entrees"},
+  {sku:"ENT-008",name:"Hot Poppers",                  size:"Half 9x13",      cat:"Entrees"},
+  {sku:"ENT-009",name:"Marinated Herb Chicken",       size:"Packed 4",       cat:"Entrees"},
+  {sku:"ENT-010",name:"Mini Kishka Capons",           size:"Packed 8",       cat:"Entrees"},
+  {sku:"ENT-011",name:"Sesame Chicken",               size:"Half 9x13",      cat:"Entrees"},
+  {sku:"ENT-012",name:"Smokey Barbecue Brisket",      size:"Whole",          cat:"Entrees"},
+  {sku:"SAL-001",name:"Beef Fry Salad",               size:"Full",           cat:"Salads"},
+  {sku:"SAL-002",name:"Citrus Summer Salad",          size:"Full",           cat:"Salads"},
+  {sku:"SAL-003",name:"Classic Grilled Chicken Salad",size:"Full",           cat:"Salads"},
+  {sku:"SAL-004",name:"Cobb Salad",                   size:"Full",           cat:"Salads"},
+  {sku:"SAL-005",name:"Loaded Salad",                 size:"Full",           cat:"Salads"},
+  {sku:"SID-001",name:"Butternut Squash Muffins",     size:"Mini Packed 12", cat:"Sides"},
+  {sku:"SID-002",name:"Confetti Rice",                size:"9\" Round",      cat:"Sides"},
+  {sku:"SID-003",name:"Fruit Crisp",                  size:"9\" Round",      cat:"Sides"},
+  {sku:"SID-004",name:"Fruit Crisp",                  size:"Packed 12",      cat:"Sides"},
+  {sku:"SID-005",name:"Grilled Vegetables",           size:"Half 9x13",      cat:"Sides"},
+  {sku:"SID-006",name:"Mushroom Leek Tarts",          size:"Mini Packed 12", cat:"Sides"},
+  {sku:"SID-007",name:"Potato Puffs",                 size:"Mini Packed 12", cat:"Sides"},
+  {sku:"SID-008",name:"Pastrami Orzo",                size:"9\" Round",      cat:"Sides"},
+  {sku:"SID-009",name:"Sesame String Beans & Peppers",size:"Half 9x13",      cat:"Sides"},
+  {sku:"DES-001",name:"Chocolate Chip Lotus Cups",    size:"Packed 12 Warm", cat:"Desserts"},
+  {sku:"DES-002",name:"Chocolate Souffle",            size:"Packed 12 Warm", cat:"Desserts"},
+  {sku:"DES-003",name:"Frozen Blueberry Crumble",     size:"9\" Round",      cat:"Desserts"},
+  {sku:"DES-004",name:"Light Lemon Mousse",           size:"2 lbs",          cat:"Desserts"},
+  {sku:"DES-005",name:"Plum Galette",                 size:"Full",           cat:"Desserts"},
+  {sku:"DES-006",name:"S'mores Bar",                  size:"9x13 Warm",      cat:"Desserts"},
+];
+
+// Build SKU lookup map + production counters
+const SKU_MAP = {};
+const prodCount = {}; // sku -> {needed, done}
+SKUS.forEach(s => {
+  SKU_MAP[s.sku] = s;
+  prodCount[s.sku] = {needed:0, done:0};
+});
+
+// ── Name → SKU fuzzy map (built from Shopify product names) ──
+// Shopify names like "Hearty Flanken Soup" → SOP-003
+// We match by normalizing both sides
+function normalizeName(str) {
+  return str.toLowerCase()
+    .replace(/[-–—]/g,' ')
+    .replace(/[^a-z0-9 ]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+// Build a name→sku map from our master list
+const NAME_TO_SKU = {};
+SKUS.forEach(s => {
+  NAME_TO_SKU[normalizeName(s.name)] = s.sku;
+});
+
+// Extra aliases for known Shopify naming variations
+const ALIASES = {
+  "cabbage pastrami eggrolls": "APP-001",
+  "glazed hassleback":         "APP-002",
+  "glazed hasselback":         "APP-002",
+  "hassleback":                "APP-002",
+  "hasselback":                "APP-002",
+  "chicken wontons":           "APP-003",
+  "grilled oyster steak":      "APP-004",
+  "sweet meatballs":           "APP-005",
+  "barbecue pulled brisket":   "APP-006",
+  "bbq pulled brisket":        "APP-006",
+  "broccoli zucchini":         "SOP-001",
+  "cream of chicken":          "SOP-002",
+  "hearty flanken soup":       "SOP-003",
+  "hearty flanken":            "SOP-003",
+  "smoothie fruit":            "SOP-004",
+  "split pea":                 "SOP-005",
+  "panko crusted":             "FSH-001",
+  "panko salmon":              "FSH-001",
+  "rainbow salmon":            "FSH-002",
+  "rainbow":                   "FSH-002",
+  "pecan crusted":             "FSH-003",
+  "pecan salmon":              "FSH-003",
+  "salmon wellington":         "FSH-004",
+  "salmon wellington pockets": "FSH-004",
+  "maple garlic":              "FSH-005",
+  "chicken steak":             "ENT-001",
+  "chicken steak ready to bake":"ENT-001",
+  "cornflake chicken":         "ENT-002",
+  "cornflake chicken fingers": "ENT-002",
+  "corned beef":               "ENT-003",
+  "french roast sweet":        "ENT-004",
+  "french roast wine":         "ENT-005",
+  "beer braised riblets":      "ENT-006",
+  "riblets":                   "ENT-006",
+  "fruity flanken":            "ENT-007",
+  "fruity infused flanken":    "ENT-007",
+  "hot poppers":               "ENT-008",
+  "marinated herb":            "ENT-009",
+  "mini kishka":               "ENT-010",
+  "kishka capons":             "ENT-010",
+  "sesame chicken":            "ENT-011",
+  "smokey barbecue brisket":   "ENT-012",
+  "smokey brisket":            "ENT-012",
+  "beef fry salad":            "SAL-001",
+  "beef fry":                  "SAL-001",
+  "citrus summer":             "SAL-002",
+  "classic grilled chicken":   "SAL-003",
+  "cobb salad":                "SAL-004",
+  "cobb":                      "SAL-004",
+  "loaded salad":              "SAL-005",
+  "loaded":                    "SAL-005",
+  "butternut squash muffins":  "SID-001",
+  "butternut squash":          "SID-001",
+  "confetti rice":             "SID-002",
+  "fruit crisp 9":             "SID-003",
+  "fruit crisp packed":        "SID-004",
+  "grilled vegetables":        "SID-005",
+  "cgrilled vegetables":       "SID-005",
+  "mushroom leek tarts":       "SID-006",
+  "mushroom leek":             "SID-006",
+  "potato puffs":              "SID-007",
+  "mini potato puffs":         "SID-007",
+  "pastrami orzo":             "SID-008",
+  "sesame string beans":       "SID-009",
+  "string beans":              "SID-009",
+  "chocolate chip lotus":      "DES-001",
+  "lotus cups":                "DES-001",
+  "chocolate souffle":         "DES-002",
+  "frozen blueberry":          "DES-003",
+  "blueberry crumble":         "DES-003",
+  "lemon mousse":              "DES-004",
+  "light lemon":               "DES-004",
+  "plum galette":              "DES-005",
+  "smores bar":                "DES-006",
+  "s mores bar":               "DES-006",
+};
+
+function shopifyNameToSKU(productTitle) {
+  // Strip size suffix (everything after " - " or " – ")
+  const base = productTitle.replace(/\s*[-–]\s*(packed|half|9x13|9"|mini|one|two|six|ten|twelve|side|whole|ready|\d).*/i, '').trim();
+  const norm = normalizeName(base);
+
+  // Try exact match first
+  if (NAME_TO_SKU[norm]) return NAME_TO_SKU[norm];
+
+  // Try aliases
+  for (const [alias, sku] of Object.entries(ALIASES)) {
+    if (norm.includes(alias)) return sku;
+  }
+
+  // Partial match fallback
+  for (const [key, sku] of Object.entries(NAME_TO_SKU)) {
+    if (norm.includes(key) || key.includes(norm)) return sku;
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let mode = 'prod';
+let orders = {};        // orderNum -> {customer, items:[{sku,name,size,qtyOrdered,qtyPacked}]}
+let currentOrder = null;
+let prodHistory = [];
+let packHistory = [];
+let totalScans = 0;
+
+// ═══════════════════════════════════════════════════════
+// CSV LOADING
+// ═══════════════════════════════════════════════════════
+function toggleDropZone() {
+  const dz = document.getElementById('drop-zone');
+  dz.classList.toggle('visible');
+}
+function dragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function dragLeave()  { document.getElementById('drop-zone').classList.remove('drag-over'); }
+function dropFile(e)  { e.preventDefault(); dragLeave(); processFile(e.dataTransfer.files[0]); }
+function fileChosen(e){ processFile(e.target.files[0]); }
+
+function processFile(file) {
+  if (!file) return;
+
+  // If orders already loaded, warn before overwriting
+  const existingCount = Object.keys(orders).length;
+  if (existingCount > 0) {
+    const confirmed = confirm(
+      `⚠️ You already have ${existingCount} orders loaded.\n\n` +
+      `Loading a new CSV will OVERWRITE everything — including any packing progress made this session.\n\n` +
+      `Are you sure you want to reload?`
+    );
+    if (!confirmed) {
+      // Reset the file input so they can try again later
+      document.getElementById('file-input').value = '';
+      return;
+    }
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => parseShopifyCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseShopifyCSV(text) {
+  // Parse CSV
+  const rows = [];
+  const lines = text.split('\n');
+  if (lines.length < 2) { showFlash('CSV appears empty — try re-exporting from Shopify', 'err'); return; }
+
+  // Parse header
+  const header = parseCSVLine(lines[0]);
+  const col = {};
+  header.forEach((h,i) => col[h.trim().toLowerCase()] = i);
+
+  // Key column names Shopify uses
+  const orderNumCol   = col['name'] ?? col['order'] ?? col['order name'] ?? col['#'];
+  const customerCol   = col['billing name'] ?? col['customer name'] ?? col['shipping name'] ?? col['email'];
+  const lineItemCol   = col['lineitem name'] ?? col['line item name'] ?? col['line_item_name'] ?? col['lineitem_name'];
+  const qtyCol        = col['lineitem quantity'] ?? col['line item quantity'] ?? col['lineitem_quantity'] ?? col['quantity'];
+
+  if (orderNumCol === undefined || lineItemCol === undefined) {
+    showFlash('Could not read CSV columns — make sure you export "CSV for Excel" from Shopify Orders', 'err');
+    return;
+  }
+
+  // Reset orders
+  orders = {};
+  let matched = 0, unmatched = 0;
+  const unmatchedNames = new Set();
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseCSVLine(line);
+    if (!cols[orderNumCol]) continue;
+
+    const rawOrderNum = cols[orderNumCol].replace(/^#/,'').trim();
+    const customer    = customerCol !== undefined ? cols[customerCol] || 'Unknown' : 'Unknown';
+    const itemName    = lineItemCol !== undefined ? cols[lineItemCol] || '' : '';
+    const qty         = parseInt(cols[qtyCol] || '1', 10) || 1;
+
+    if (!itemName) continue;
+
+    if (!orders[rawOrderNum]) {
+      orders[rawOrderNum] = { customer, items: [] };
+    }
+
+    const sku = shopifyNameToSKU(itemName);
+    if (sku) {
+      const skuData = SKU_MAP[sku];
+      // Check if this SKU already exists in this order (aggregate qty)
+      const existing = orders[rawOrderNum].items.find(it => it.sku === sku);
+      if (existing) {
+        existing.qtyOrdered += qty;
+      } else {
+        orders[rawOrderNum].items.push({
+          sku, name: skuData.name, size: skuData.size,
+          qtyOrdered: qty, qtyPacked: 0
+        });
+      }
+      matched++;
+    } else {
+      unmatched++;
+      unmatchedNames.add(itemName);
+    }
+  }
+
+  // Rebuild production needed counts
+  Object.keys(prodCount).forEach(s => prodCount[s].needed = 0);
+  Object.values(orders).forEach(order => {
+    order.items.forEach(item => {
+      if (prodCount[item.sku]) prodCount[item.sku].needed += item.qtyOrdered;
+    });
+  });
+
+  const orderCount = Object.keys(orders).length;
+  if (orderCount === 0) {
+    showFlash('No orders found in CSV — check the file and try again', 'err');
+    return;
+  }
+
+  // Update UI
+  document.getElementById('orders-loaded-txt').textContent = `${orderCount} orders loaded`;
+  document.getElementById('orders-loaded-txt').style.color = 'var(--green)';
+  document.getElementById('orders-count').style.display = 'none';
+  document.getElementById('csv-status').textContent = `✅ ${orderCount} orders loaded · ${matched} line items matched`;
+
+  // Hide drop zone
+  document.getElementById('drop-zone').classList.remove('visible');
+
+  let msg = `✅ Loaded ${orderCount} orders with ${matched} line items`;
+  if (unmatched > 0) msg += ` · ${unmatched} items couldn't be matched (${[...unmatchedNames].slice(0,2).join(', ')}${unmatchedNames.size > 2 ? '…' : ''})`;
+  showFlash(msg, unmatched > 0 ? 'warn' : 'ok');
+
+  renderProdGrid();
+  updateProdStats();
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════
+// MODE
+// ═══════════════════════════════════════════════════════
+function setMode(m) {
+  mode = m;
+  document.getElementById('panel-prod').classList.toggle('on', m==='prod');
+  document.getElementById('panel-pack').classList.toggle('on', m==='pack');
+  document.getElementById('pill-prod').className = 'pill' + (m==='prod' ? ' p-active' : '');
+  document.getElementById('pill-pack').className = 'pill' + (m==='pack' ? ' k-active' : '');
+  if (m==='prod') setTimeout(()=>document.getElementById('prod-input').focus(), 50);
+  if (m==='pack') setTimeout(()=>document.getElementById('order-input').focus(), 50);
+}
+
+// ═══════════════════════════════════════════════════════
+// FLASH
+// ═══════════════════════════════════════════════════════
+let flashT;
+function showFlash(msg, type='ok') {
+  const el = document.getElementById('flash');
+  el.textContent = msg;
+  el.className = 'flash ' + type;
+  clearTimeout(flashT);
+  flashT = setTimeout(() => el.className='flash', 4000);
+}
+
+// ═══════════════════════════════════════════════════════
+// PRODUCTION
+// ═══════════════════════════════════════════════════════
+// ── Google Sheets sync ──
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwHjoGzVMnaXukP52TLX0ShQpBUo9QrMnksgA7xVWDhDH8UugtcF7XWy2RWC5-tiJKm/exec';
+
+function syncToSheet(payload) {
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).catch(err => console.warn('Sheet sync failed:', err));
+}
+
+function loadCountsFromSheet() {
+  const indicator = document.getElementById('sheet-sync-status');
+  if (indicator) { indicator.textContent = '🔄 Syncing with Google Sheet...'; indicator.style.color = 'var(--orange)'; }
+
+  fetch(SHEETS_URL, { method: 'GET' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok' && data.counts) {
+        let restored = 0;
+        Object.entries(data.counts).forEach(([sku, done]) => {
+          if (prodCount[sku] !== undefined && done > 0) {
+            prodCount[sku].done = done;
+            totalScans += done;
+            restored++;
+          }
+        });
+        if (indicator) { indicator.textContent = `✅ Synced with Google Sheet`; indicator.style.color = 'var(--green)'; }
+        if (restored > 0) showFlash(`✅ Resumed from Google Sheet — ${restored} items have existing counts`, 'ok');
+        renderProdGrid();
+        updateProdStats();
+      }
+    })
+    .catch(err => {
+      console.warn('Could not load counts from sheet:', err);
+      if (indicator) { indicator.textContent = '⚠️ Could not reach Google Sheet'; indicator.style.color = 'var(--orange)'; }
+    });
+}
+
+function prodScan() {
+  const inp = document.getElementById('prod-input');
+  const sku = inp.value.trim().toUpperCase();
+  inp.value = ''; inp.focus();
+  if (!sku) return;
+
+  const item = SKU_MAP[sku];
+  if (!item) { showFlash(`❌ Unknown barcode: "${sku}" — not in menu`, 'err'); return; }
+
+  prodCount[sku].done++;
+  totalScans++;
+  const t = now();
+  prodHistory.unshift({t, sku, name:item.name, count:prodCount[sku].done});
+
+  // Sync to Google Sheet
+  syncToSheet({action:'prod_scan', sku});
+
+  const needed = prodCount[sku].needed;
+  const done   = prodCount[sku].done;
+  const msg = needed > 0
+    ? `✅ ${item.name} — ${done} of ${needed} made${done>=needed ? ' 🎉 ALL DONE!' : ''}`
+    : `✅ ${item.name} — ${done} made (load orders to see target)`;
+  showFlash(msg, 'ok');
+
+  renderProdGrid();
+  updateProdStats();
+  renderProdHist();
+}
+
+function renderProdGrid() {
+  const cats = {};
+  SKUS.forEach(s => { if(!cats[s.cat]) cats[s.cat]=[]; cats[s.cat].push(s); });
+  const container = document.getElementById('prod-cats');
+  container.innerHTML = '';
+
+  for (const [cat, items] of Object.entries(cats)) {
+    const sec = document.createElement('div');
+    sec.className = 'sec'; sec.textContent = cat;
+    container.appendChild(sec);
+
+    const grid = document.createElement('div');
+    grid.className = 'prod-grid';
+
+    items.forEach(item => {
+      const {needed, done} = prodCount[item.sku];
+      const isDone    = needed > 0 && done >= needed;
+      const isPartial = done > 0 && !isDone;
+
+      grid.innerHTML += `
+        <div class="pcard ${isDone?'is-done':isPartial?'is-partial':''}">
+          <div class="pcard-sku">${item.sku}</div>
+          <div class="pcard-name">${item.name}</div>
+          <div class="pcard-size">${item.size}</div>
+          <div class="pcard-counts">
+            <div class="cbox">
+              <div class="cbox-lbl">Needed</div>
+              <div class="cbox-num ${needed===0?'d':''}">${needed||'—'}</div>
+            </div>
+            <div class="cbox">
+              <div class="cbox-lbl">Done</div>
+              <div class="cbox-num ${done===0?'d':isDone?'g':'o'}">${done}</div>
+            </div>
+          </div>
+        </div>`;
+    });
+    container.appendChild(grid);
+  }
+}
+
+function updateProdStats() {
+  let done=0, partial=0, zero=0;
+  SKUS.forEach(s => {
+    const c = prodCount[s.sku];
+    if (c.done >= c.needed && c.needed > 0) done++;
+    else if (c.done > 0) partial++;
+    else zero++;
+  });
+  document.getElementById('s-done').textContent    = done;
+  document.getElementById('s-partial').textContent = partial;
+  document.getElementById('s-zero').textContent    = zero;
+  document.getElementById('s-scans').textContent   = totalScans;
+}
+
+function renderProdHist() {
+  const el = document.getElementById('prod-hist');
+  if (!prodHistory.length) { el.innerHTML = '<div class="empty" style="padding:12px"><div class="empty-sub">No scans yet</div></div>'; return; }
+  el.innerHTML = prodHistory.slice(0,20).map(h => `
+    <div class="hist-row">
+      <span class="hist-time">${h.t}</span>
+      <span class="hist-sku g">${h.sku}</span>
+      <span>${h.name} — <strong>#${h.count}</strong> made</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// PACK
+// ═══════════════════════════════════════════════════════
+function loadOrder() {
+  const inp = document.getElementById('order-input');
+  const num = inp.value.trim().replace(/^#/,'');
+  if (!num) return;
+
+  const od = orders[num];
+  if (!od) {
+    if (Object.keys(orders).length === 0) {
+      showFlash('No orders loaded yet — drop your Shopify CSV first', 'warn');
+    } else {
+      showFlash(`❌ Order #${num} not found — check the number or reload your CSV`, 'err');
+    }
+    return;
+  }
+
+  // Deep copy so we don't mutate the order store
+  currentOrder = {
+    num,
+    customer: od.customer,
+    items: od.items.map(i => ({...i, qtyPacked:0}))
+  };
+
+  document.getElementById('h-order').textContent   = '#' + num;
+  document.getElementById('h-cust').textContent    = od.customer;
+  document.getElementById('h-items').textContent   = currentOrder.items.length + ' items';
+  document.getElementById('h-status').textContent  = '⏳ Packing';
+  document.getElementById('order-hdr').classList.add('vis');
+  document.getElementById('pack-scan-wrap').style.display = 'block';
+  document.getElementById('pack-empty').style.display     = 'none';
+
+  renderPackList();
+  updateProgress();
+  setTimeout(() => document.getElementById('pack-input').focus(), 50);
+}
+
+function packScan() {
+  if (!currentOrder) { showFlash('Load an order first', 'warn'); return; }
+  const inp = document.getElementById('pack-input');
+  const sku = inp.value.trim().toUpperCase();
+  inp.value = ''; inp.focus();
+  if (!sku) return;
+
+  const orderItem = currentOrder.items.find(i => i.sku === sku);
+  if (!orderItem) {
+    const globalItem = SKU_MAP[sku];
+    if (globalItem) showFlash(`⚠️ ${globalItem.name} is NOT on Order #${currentOrder.num} — wrong box?`, 'err');
+    else            showFlash(`❌ Unknown barcode: "${sku}"`, 'err');
+    return;
+  }
+  if (orderItem.qtyPacked >= orderItem.qtyOrdered) {
+    showFlash(`⚠️ ${orderItem.name} already fully packed (${orderItem.qtyOrdered}/${orderItem.qtyOrdered})`, 'warn');
+    return;
+  }
+
+  orderItem.qtyPacked++;
+  const t = now();
+  packHistory.unshift({t, sku, name:orderItem.name, orderNum:currentOrder.num});
+
+  // Sync to Google Sheet
+  syncToSheet({action:'pack_scan', sku, order:currentOrder.num});
+
+  const rem = orderItem.qtyOrdered - orderItem.qtyPacked;
+  showFlash(rem === 0
+    ? `✅ ${orderItem.name} — fully packed!`
+    : `📦 ${orderItem.name} — ${orderItem.qtyPacked}/${orderItem.qtyOrdered} packed (${rem} more)`,
+    'ok');
+
+  renderPackList();
+  updateProgress();
+  renderPackHist();
+}
+
+function renderPackList() {
+  const el = document.getElementById('pack-list');
+  if (!currentOrder?.items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = currentOrder.items.map(item => {
+    const packed  = item.qtyPacked >= item.qtyOrdered;
+    const partial = item.qtyPacked > 0 && !packed;
+    const cls = packed ? 'packed' : partial ? 'partial' : 'missing';
+    const icon= packed ? '✅' : partial ? '⏳' : '○';
+    return `
+      <div class="pack-row ${cls}">
+        <div class="pack-dot">${icon}</div>
+        <div class="pack-info">
+          <div class="pack-name">${item.name}</div>
+          <div class="pack-meta">${item.size} · ${item.sku}</div>
+        </div>
+        <div class="pack-chip ${packed?'done':''}">${item.qtyPacked} / ${item.qtyOrdered}</div>
+      </div>`;
+  }).join('');
+}
+
+function updateProgress() {
+  if (!currentOrder) return;
+  const total  = currentOrder.items.reduce((s,i) => s + i.qtyOrdered, 0);
+  const packed = currentOrder.items.reduce((s,i) => s + Math.min(i.qtyPacked, i.qtyOrdered), 0);
+  const pct = total > 0 ? packed/total*100 : 0;
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = `${packed} of ${total} items packed`;
+  if (packed >= total && total > 0) {
+    document.getElementById('h-status').textContent = '✅ Complete!';
+    showFlash(`🎉 Order #${currentOrder.num} (${currentOrder.customer}) is fully packed and ready!`, 'ok');
+  }
+}
+
+function renderPackHist() {
+  const el = document.getElementById('pack-hist');
+  if (!packHistory.length) { el.innerHTML = '<div class="empty" style="padding:12px"><div class="empty-sub">No scans yet</div></div>'; return; }
+  el.innerHTML = packHistory.slice(0,20).map(h => `
+    <div class="hist-row">
+      <span class="hist-time">${h.t}</span>
+      <span class="hist-sku b">${h.sku}</span>
+      <span>${h.name} → Order #${h.orderNum}</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function now() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+
+// ── Init ──
+renderProdGrid();
+updateProdStats();
+document.getElementById('prod-input').focus();
+loadCountsFromSheet();
+</script>
+</body>
+</html>
