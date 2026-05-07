@@ -527,35 +527,20 @@ function atSyncOrders() {
     .catch(function(e){ console.warn('AT orders sync error:', e); });
 }
 
-// Update order statuses based on current production counts
+// Update order statuses based on FIFO allocation
 function atUpdateOrderStatuses() {
+  var fifo = computeFifoAllocation();
   var updates = [];
   Object.keys(orders).forEach(function(num) {
     var recId = atOrderRecordIds[num];
     if (!recId) return;
-    var order = orders[num];
-    var totalItems = 0, itemsReady = 0;
-    var allReady = true;
-    order.items.forEach(function(item) {
-      totalItems += item.qtyOrdered;
-      var done = prodCount[item.sku] ? prodCount[item.sku].done : 0;
-      // Item is ready if we have cooked at least as many as this order needs
-      if (done >= item.qtyOrdered) {
-        itemsReady += item.qtyOrdered;
-      } else if (done > 0) {
-        itemsReady += done;
-        allReady = false;
-      } else {
-        allReady = false;
-      }
-    });
-    var shipped = order.shipped || false;
-    var status = shipped ? 'Shipped' : (allReady && totalItems > 0 ? 'Ready Now' : 'Not Ready');
+    var f = fifo[num];
+    var status = f.shipped ? 'Shipped' : (f.allReady ? 'Ready Now' : 'Not Ready');
     updates.push({id: recId, fields: {
       'Status': status,
-      'Total Items': totalItems,
-      'Items Ready': itemsReady,
-      'Shipped': shipped
+      'Total Items': f.totalItems,
+      'Items Ready': f.itemsReady,
+      'Shipped': f.shipped
     }});
   });
 
@@ -1097,9 +1082,72 @@ function now() {
   return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 }
 
+// ── FIFO ALLOCATION ──────────────────────────────────────
+// For each SKU, distribute done count across orders in order number sequence.
+// Returns a map of orderNum -> {allocated: {sku: qty}, fullyReady: bool}
+function computeFifoAllocation() {
+  var allocation = {}; // orderNum -> {sku -> allocatedQty}
+
+  // Initialize allocation for all orders
+  Object.keys(orders).forEach(function(num) {
+    allocation[num] = {};
+    orders[num].items.forEach(function(item) {
+      allocation[num][item.sku] = 0;
+    });
+  });
+
+  // For each SKU, allocate done units to orders FIFO by order number
+  SKUS.forEach(function(s) {
+    var sku = s.sku;
+    var available = prodCount[sku] ? prodCount[sku].done : 0;
+    if (available === 0) return;
+
+    // Get all orders that need this SKU, sorted by order number ascending
+    var needingOrders = Object.keys(orders)
+      .filter(function(num) {
+        return orders[num].items.some(function(item){ return item.sku === sku; });
+      })
+      .sort(function(a, b) { return parseInt(a) - parseInt(b); });
+
+    needingOrders.forEach(function(num) {
+      if (available <= 0) return;
+      var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
+      if (!orderItem) return;
+      var needed = orderItem.qtyOrdered;
+      var give = Math.min(available, needed);
+      allocation[num][sku] = give;
+      available -= give;
+    });
+  });
+
+  // Compute readiness for each order
+  var result = {};
+  Object.keys(orders).forEach(function(num) {
+    var order = orders[num];
+    var totalItems = 0, itemsReady = 0, allReady = true;
+    order.items.forEach(function(item) {
+      totalItems += item.qtyOrdered;
+      var allocated = allocation[num][item.sku] || 0;
+      itemsReady += allocated;
+      if (allocated < item.qtyOrdered) allReady = false;
+    });
+    result[num] = {
+      allocation: allocation[num],
+      totalItems: totalItems,
+      itemsReady: itemsReady,
+      allReady: allReady && totalItems > 0,
+      shipped: orders[num].shipped || false
+    };
+  });
+
+  return result;
+}
+
 // ── COOK NEXT ────────────────────────────────────────────
 function renderCookNext() {
-  // For each SKU, count how many NOT-YET-ready orders are blocked by it
+  var fifo = computeFifoAllocation();
+
+  // For each SKU, count how many NOT-YET-ready orders are blocked by it (using FIFO)
   var skuBlockCount = {};
   var skuStillNeed = {};
   SKUS.forEach(function(s) {
@@ -1107,21 +1155,17 @@ function renderCookNext() {
     skuStillNeed[s.sku] = Math.max(0, (prodCount[s.sku].needed||0) - prodCount[s.sku].done);
   });
 
-  // Count orders blocked by each SKU
-  Object.values(orders).forEach(function(order) {
+  // Count orders blocked by each SKU using FIFO allocation
+  Object.keys(orders).forEach(function(num) {
+    var order = orders[num];
     if (order.shipped) return;
-    // Check if this order is fully ready
-    var orderReady = order.items.every(function(item) {
-      var c = prodCount[item.sku];
-      return c && c.done >= item.qtyOrdered;
-    });
-    if (orderReady) return; // already ready, not blocked
+    var f = fifo[num];
+    if (f.allReady) return; // already ready
 
-    // Find which items are blocking this order
+    // Find which items are under-allocated for this order
     order.items.forEach(function(item) {
-      var c = prodCount[item.sku];
-      if (!c) return;
-      if (c.done < item.qtyOrdered) {
+      var allocated = f.allocation[item.sku] || 0;
+      if (allocated < item.qtyOrdered) {
         skuBlockCount[item.sku]++;
       }
     });
@@ -1135,19 +1179,14 @@ function renderCookNext() {
       stillNeed:skuStillNeed[s.sku], blocked:skuBlockCount[s.sku],
       done:prodCount[s.sku].done, needed:prodCount[s.sku].needed};
   }).sort(function(a,b) {
-    // Sort by orders blocked desc, then still need desc
     if (b.blocked !== a.blocked) return b.blocked - a.blocked;
     return b.stillNeed - a.stillNeed;
   });
 
-  // Ready orders
+  // Ready orders using FIFO
   var readyOrders = Object.keys(orders).filter(function(num) {
-    var order = orders[num];
-    if (order.shipped) return false;
-    return order.items.length > 0 && order.items.every(function(item) {
-      var c = prodCount[item.sku];
-      return c && c.done >= item.qtyOrdered;
-    });
+    if (orders[num].shipped) return false;
+    return fifo[num] && fifo[num].allReady;
   });
 
   // Render cook list
