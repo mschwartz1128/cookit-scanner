@@ -18,24 +18,32 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:#1a2036;border-bottom:1px solid #0f1525;position:sticky;top:0;z-index:200;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:#1a2036;border-bottom:1px solid #0f1525;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:10px;}
 .brand{display:flex;align-items:center;gap:12px;}
 .brand-badge{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-size:19px;}
 .brand-name{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;}
 .brand-season{font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px;}
-.orders-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 14px;font-size:12px;}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.orders-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.7);}
 .orders-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 .mode-pills{display:flex;gap:4px;background:rgba(0,0,0,0.25);border-radius:9px;padding:3px;border:1px solid rgba(255,255,255,0.1);}
 .pill{padding:6px 16px;border-radius:6px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.55);background:transparent;}
 .pill.p-active{background:var(--green);color:#0a2016;}
 .pill.k-active{background:var(--blue);color:#0a1628;}
+.clear-btn{padding:6px 14px;border-radius:6px;border:1px solid rgba(220,38,38,0.4);background:rgba(220,38,38,0.15);color:#fca5a5;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s;}
+.clear-btn:hover{background:rgba(220,38,38,0.3);}
 .flash{margin:14px 28px 0;padding:11px 16px;border-radius:var(--r-sm);font-weight:600;font-size:13px;display:none;animation:slideDown 0.15s ease;}
 @keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .flash.ok{background:var(--green-dim);color:var(--green);border:1px solid rgba(24,168,90,0.25);display:block;}
 .flash.err{background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.25);display:block;}
 .flash.warn{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(217,119,6,0.25);display:block;}
 main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
+.session-bar{display:flex;align-items:center;gap:12px;background:#f0fff8;border:1px solid rgba(24,168,90,0.25);border-radius:var(--r);padding:12px 18px;margin-bottom:16px;font-size:12px;display:none;}
+.session-bar.visible{display:flex;}
+.session-bar-icon{font-size:18px;}
+.session-bar-text{flex:1;color:var(--green);font-weight:600;}
+.session-bar-sub{color:var(--muted);font-weight:400;}
 .csv-bar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:20px;}
 .csv-icon{font-size:20px;}
 .csv-text{flex:1;}
@@ -57,8 +65,8 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .unmatched-title{font-weight:700;font-size:13px;color:var(--orange);margin-bottom:10px;}
 .unmatched-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
 .unmatched-name{font-size:12px;font-weight:600;flex:1;min-width:200px;}
-.unmatched-select{padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--border2);font-family:'DM Sans',sans-serif;font-size:12px;background:white;cursor:pointer;}
-.unmatched-btn{padding:5px 12px;border-radius:var(--r-sm);border:none;background:var(--orange);color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;}
+.unmatched-select{padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--border2);font-family:'DM Sans',sans-serif;font-size:12px;background:white;cursor:pointer;flex:1;}
+.unmatched-btn{padding:7px 16px;border-radius:var(--r-sm);border:none;background:var(--orange);color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;}
 .scan-bar{background:var(--surface);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;border:1px solid var(--border);}
 .scan-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
 .scan-row{display:flex;gap:10px;}
@@ -135,19 +143,28 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <div class="brand-season">Shavuos 2026 — Kitchen Scanner</div>
     </div>
   </div>
-  <div class="orders-badge">
-    <div class="orders-dot"></div>
-    <span id="orders-loaded-txt" style="color:var(--muted)">No orders loaded</span>
-  </div>
-  <div class="mode-pills">
-    <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
-    <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
+  <div class="topbar-right">
+    <div class="orders-badge">
+      <div class="orders-dot"></div>
+      <span id="orders-loaded-txt">No orders loaded</span>
+    </div>
+    <div class="mode-pills">
+      <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
+      <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
+    </div>
+    <button class="clear-btn" onclick="clearEverything()">🗑 Clear All</button>
   </div>
 </div>
 
 <div class="flash" id="flash"></div>
 
 <main>
+  <!-- SESSION RESTORED BAR -->
+  <div class="session-bar" id="session-bar">
+    <div class="session-bar-icon">💾</div>
+    <div class="session-bar-text">Session restored! <span class="session-bar-sub" id="session-bar-sub"></span></div>
+  </div>
+
   <div class="csv-bar">
     <div class="csv-icon">📂</div>
     <div class="csv-text">
@@ -173,11 +190,11 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     </div>
   </div>
 
-  <!-- UNMATCHED ITEMS BOX -->
+  <!-- UNMATCHED ITEMS -->
   <div class="unmatched-box" id="unmatched-box">
-    <div class="unmatched-title">⚠️ These Shopify items could not be matched — please assign them manually:</div>
+    <div class="unmatched-title">⚠️ These items could not be matched automatically — please assign them:</div>
     <div id="unmatched-list"></div>
-    <button class="unmatched-btn" onclick="applyManualMatches()" style="margin-top:10px">Apply Matches</button>
+    <button class="unmatched-btn" onclick="applyManualMatches()">✅ Apply Matches</button>
   </div>
 
   <!-- PRODUCTION PANEL -->
@@ -190,7 +207,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       </div>
     </div>
     <div class="stat-row">
-      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b" id="s-total">49</div></div>
+      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b">49</div></div>
       <div class="stat"><div class="stat-lbl">Fully Done</div><div class="stat-val g" id="s-done">0</div></div>
       <div class="stat"><div class="stat-lbl">In Progress</div><div class="stat-val o" id="s-partial">0</div></div>
       <div class="stat"><div class="stat-lbl">Not Started</div><div class="stat-val" id="s-zero">49</div></div>
@@ -234,15 +251,14 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       </div>
       <div class="pack-list" id="pack-list"></div>
     </div>
-    <div class="empty" id="pack-empty">
-      <div class="empty-sub">Enter an order number above to start packing</div>
-    </div>
+    <div class="empty" id="pack-empty"><div class="empty-sub">Enter an order number above to start packing</div></div>
     <div class="sec">Pack History</div>
     <div class="hist-list" id="pack-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
   </div>
 </main>
 
 <script>
+// ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"APP-001",name:"Cabbage Pastrami Eggrolls",size:"Packed 12",cat:"Appetizers"},
   {sku:"APP-002",name:"Glazed Hassleback Kielbasa",size:"One Kielbasa",cat:"Appetizers"},
@@ -297,199 +313,269 @@ const SKUS = [
 
 const SKU_MAP = {};
 const prodCount = {};
-SKUS.forEach(function(s) { SKU_MAP[s.sku] = s; prodCount[s.sku] = {needed:0, done:0}; });
+SKUS.forEach(function(s){SKU_MAP[s.sku]=s; prodCount[s.sku]={needed:0,done:0};});
 
-// Normalize a string for fuzzy matching
+// ── STORAGE KEY ──────────────────────────────────────────
+const STORE_KEY = 'cookit_session_v1';
+
+// ── STATE ────────────────────────────────────────────────
+var orders = {};
+var scanCounts = {}; // sku -> done count (persisted separately from prodCount)
+var currentOrder = null;
+var pendingUnmatched = [];
+var mode = 'prod';
+var prodHistory = [];
+var packHistory = [];
+
+// ── PERSISTENCE ──────────────────────────────────────────
+function saveSession() {
+  try {
+    var data = {
+      orders: orders,
+      scanCounts: scanCounts,
+      prodHistory: prodHistory.slice(0,50),
+      packHistory: packHistory.slice(0,50),
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch(e) { console.warn('Save failed:', e); }
+}
+
+function loadSession() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    var data = JSON.parse(raw);
+    if (!data || !data.orders) return false;
+
+    orders = data.orders || {};
+    scanCounts = data.scanCounts || {};
+    prodHistory = data.prodHistory || [];
+    packHistory = data.packHistory || [];
+
+    // Restore scan counts into prodCount
+    Object.keys(scanCounts).forEach(function(sku){
+      if (prodCount[sku]) prodCount[sku].done = scanCounts[sku];
+    });
+
+    // Rebuild needed from orders
+    rebuildNeeded();
+
+    var orderCount = Object.keys(orders).length;
+    var totalScansRestored = Object.values(scanCounts).reduce(function(s,v){return s+v;},0);
+
+    if (orderCount > 0) {
+      var bar = document.getElementById('session-bar');
+      bar.classList.add('visible');
+      document.getElementById('session-bar-sub').textContent =
+        orderCount + ' orders · ' + totalScansRestored + ' scans restored from last session';
+      document.getElementById('orders-loaded-txt').textContent = orderCount + ' orders loaded';
+      document.getElementById('orders-loaded-txt').style.color = 'var(--green)';
+      document.getElementById('csv-status').textContent = orderCount + ' orders loaded (restored from previous session)';
+    }
+
+    return orderCount > 0;
+  } catch(e) { console.warn('Load failed:', e); return false; }
+}
+
+function clearEverything() {
+  var confirmed = confirm(
+    'This will permanently clear ALL data:\n\n' +
+    '• All orders\n• All scan counts\n• All pack progress\n• All history\n\n' +
+    'Use this at the end of a season or when starting fresh.\n\nAre you sure?'
+  );
+  if (!confirmed) return;
+  localStorage.removeItem(STORE_KEY);
+  orders = {}; scanCounts = {}; currentOrder = null;
+  pendingUnmatched = []; prodHistory = []; packHistory = [];
+  SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
+  document.getElementById('orders-loaded-txt').textContent = 'No orders loaded';
+  document.getElementById('orders-loaded-txt').style.color = 'rgba(255,255,255,0.7)';
+  document.getElementById('csv-status').textContent = 'No orders loaded — export your orders CSV from Shopify and drop it here';
+  document.getElementById('session-bar').classList.remove('visible');
+  document.getElementById('unmatched-box').classList.remove('visible');
+  document.getElementById('order-hdr').classList.remove('vis');
+  document.getElementById('pack-scan-wrap').style.display = 'none';
+  document.getElementById('pack-empty').style.display = '';
+  renderProdGrid(); updateProdStats();
+  renderProdHist(); renderPackHist();
+  showFlash('All data cleared — fresh start!', 'ok');
+}
+
+// ── NAME MATCHING ────────────────────────────────────────
 function norm(str) {
   return str.toLowerCase()
-    .replace(/[\u2018\u2019\u201c\u201d]/g,"'") // smart quotes
-    .replace(/[""'']/g,"")
+    .replace(/[\u2018\u2019\u201c\u201d\u2032\u2033]/g,"")
+    .replace(/[""''`]/g,"")
     .replace(/[-–—]/g," ")
     .replace(/[^a-z0-9 ]/g," ")
     .replace(/\s+/g," ").trim();
 }
 
-// Smart match: tries multiple strategies
 function shopifyNameToSKU(title) {
-  // Strip size suffix
-  var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9[""'']?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
+  var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9\s*["""''`]?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
   var n = norm(base);
   var nFull = norm(title);
 
-  // Strategy 1: exact match on normalized base name
-  for (var i=0; i<SKUS.length; i++) {
-    if (norm(SKUS[i].name) === n) return SKUS[i].sku;
+  // Exact match on base name
+  for (var i=0;i<SKUS.length;i++) { if (norm(SKUS[i].name)===n) return SKUS[i].sku; }
+  // Exact match on full title
+  for (var i=0;i<SKUS.length;i++) { if (norm(SKUS[i].name)===nFull) return SKUS[i].sku; }
+  // SKU name contained in shopify title
+  for (var i=0;i<SKUS.length;i++) {
+    var sn=norm(SKUS[i].name);
+    if (nFull.indexOf(sn)!==-1&&sn.length>6) return SKUS[i].sku;
   }
-
-  // Strategy 2: exact match on full title
-  for (var i=0; i<SKUS.length; i++) {
-    if (norm(SKUS[i].name) === nFull) return SKUS[i].sku;
+  // Fuzzy word match
+  var titleWords=n.split(" ").filter(function(w){return w.length>3;});
+  var bestSku=null,bestScore=0;
+  for (var i=0;i<SKUS.length;i++) {
+    var skuWords=norm(SKUS[i].name).split(" ").filter(function(w){return w.length>3;});
+    var matches=0;
+    titleWords.forEach(function(w){if(skuWords.indexOf(w)!==-1)matches++;});
+    var score=skuWords.length>0?matches/skuWords.length:0;
+    if(score>bestScore&&score>=0.6){bestScore=score;bestSku=SKUS[i].sku;}
   }
-
-  // Strategy 3: SKU name is contained in shopify title
-  for (var i=0; i<SKUS.length; i++) {
-    var sn = norm(SKUS[i].name);
-    if (nFull.indexOf(sn) !== -1 && sn.length > 6) return SKUS[i].sku;
-  }
-
-  // Strategy 4: shopify title words mostly match SKU name words
-  var titleWords = n.split(" ").filter(function(w){return w.length>3;});
-  var bestSku = null, bestScore = 0;
-  for (var i=0; i<SKUS.length; i++) {
-    var skuWords = norm(SKUS[i].name).split(" ").filter(function(w){return w.length>3;});
-    var matches = 0;
-    titleWords.forEach(function(w){ if(skuWords.indexOf(w)!==-1) matches++; });
-    var score = skuWords.length > 0 ? matches/skuWords.length : 0;
-    if (score > bestScore && score >= 0.6) { bestScore = score; bestSku = SKUS[i].sku; }
-  }
-  if (bestSku) return bestSku;
-
-  return null;
+  return bestSku;
 }
 
-var orders = {};
-var currentOrder = null;
-var pendingUnmatched = []; // [{shopifyName, qty, orderNum, customer}]
-var mode = 'prod';
-var prodHistory = [];
-var packHistory = [];
-var totalScans = 0;
-
+// ── CSV LOADING ──────────────────────────────────────────
 function toggleDropZone() {
   document.getElementById('drop-zone').classList.toggle('visible');
 }
-function dragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
-function dragLeave() { document.getElementById('drop-zone').classList.remove('drag-over'); }
-function dropFile(e) { e.preventDefault(); dragLeave(); processFile(e.dataTransfer.files[0]); }
-function fileChosen(e) { processFile(e.target.files[0]); }
+function dragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag-over');}
+function dragLeave(){document.getElementById('drop-zone').classList.remove('drag-over');}
+function dropFile(e){e.preventDefault();dragLeave();processFile(e.dataTransfer.files[0]);}
+function fileChosen(e){processFile(e.target.files[0]);}
 
 function processFile(file) {
   if (!file) return;
-  var existingCount = Object.keys(orders).length;
-  if (existingCount > 0) {
-    var confirmed = confirm('You already have ' + existingCount + ' orders loaded.\n\nLoading a new CSV will OVERWRITE everything. Are you sure?');
-    if (!confirmed) { document.getElementById('file-input').value=''; return; }
-  }
   var reader = new FileReader();
-  reader.onload = function(e) { parseShopifyCSV(e.target.result); };
+  reader.onload = function(e){parseShopifyCSV(e.target.result);};
   reader.readAsText(file);
 }
 
 function parseShopifyCSV(text) {
   var lines = text.split('\n');
-  if (lines.length < 2) { showFlash('CSV appears empty','err'); return; }
+  if (lines.length < 2) {showFlash('CSV appears empty','err');return;}
   var header = parseCSVLine(lines[0]);
   var col = {};
-  header.forEach(function(h,i){ col[h.trim().toLowerCase()]=i; });
+  header.forEach(function(h,i){col[h.trim().toLowerCase()]=i;});
 
-  var orderNumCol = col['name']!==undefined ? col['name'] : col['order'];
-  var customerCol = col['billing name']!==undefined ? col['billing name'] : col['email'];
-  var lineItemCol = col['lineitem name']!==undefined ? col['lineitem name'] : col['lineitem_name'];
-  var qtyCol = col['lineitem quantity']!==undefined ? col['lineitem quantity'] : col['lineitem_quantity'];
+  var orderNumCol = col['name']!==undefined?col['name']:col['order'];
+  var customerCol = col['billing name']!==undefined?col['billing name']:col['email'];
+  var lineItemCol = col['lineitem name']!==undefined?col['lineitem name']:col['lineitem_name'];
+  var qtyCol = col['lineitem quantity']!==undefined?col['lineitem quantity']:col['lineitem_quantity'];
 
-  if (orderNumCol===undefined || lineItemCol===undefined) {
-    showFlash('Could not read CSV columns — export as CSV for Excel from Shopify Orders','err');
+  if (orderNumCol===undefined||lineItemCol===undefined) {
+    showFlash('Could not read CSV — export as CSV for Excel from Shopify Orders','err');
     return;
   }
 
-  orders = {};
-  pendingUnmatched = [];
-  var matched=0, unmatchedMap={};
+  var newOrders=0, skippedOrders=0, matched=0;
+  var unmatchedMap={};
+  var newOrderData={};
 
-  for (var i=1; i<lines.length; i++) {
-    var line = lines[i].trim();
-    if (!line) continue;
-    var cols = parseCSVLine(line);
-    if (!cols[orderNumCol]) continue;
-    var orderNum = cols[orderNumCol].replace(/^#/,'').trim();
-    var customer = customerCol!==undefined ? (cols[customerCol]||'Unknown') : 'Unknown';
-    var itemName = lineItemCol!==undefined ? (cols[lineItemCol]||'') : '';
-    var qty = parseInt(cols[qtyCol]||'1',10)||1;
-    if (!itemName) continue;
-    if (!orders[orderNum]) orders[orderNum]={customer:customer,items:[]};
-    var sku = shopifyNameToSKU(itemName);
-    if (sku) {
-      var existing = orders[orderNum].items.find(function(it){return it.sku===sku;});
-      if (existing) existing.qtyOrdered+=qty;
-      else orders[orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:qty,qtyPacked:0});
+  for (var i=1;i<lines.length;i++) {
+    var line=lines[i].trim();
+    if(!line) continue;
+    var cols=parseCSVLine(line);
+    if(!cols[orderNumCol]) continue;
+    var orderNum=cols[orderNumCol].replace(/^#/,'').trim();
+    var customer=customerCol!==undefined?(cols[customerCol]||'Unknown'):'Unknown';
+    var itemName=lineItemCol!==undefined?(cols[lineItemCol]||''):'';
+    var qty=parseInt(cols[qtyCol]||'1',10)||1;
+    if(!itemName) continue;
+
+    // Skip if order already exists
+    if (orders[orderNum]) { skippedOrders++; continue; }
+
+    if(!newOrderData[orderNum]) { newOrderData[orderNum]={customer:customer,items:[]}; newOrders++; }
+    var sku=shopifyNameToSKU(itemName);
+    if(sku) {
+      var existing=newOrderData[orderNum].items.find(function(it){return it.sku===sku;});
+      if(existing) existing.qtyOrdered+=qty;
+      else newOrderData[orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:qty,qtyPacked:0});
       matched++;
     } else {
-      if (!unmatchedMap[itemName]) unmatchedMap[itemName]=[];
+      if(!unmatchedMap[itemName]) unmatchedMap[itemName]=[];
       unmatchedMap[itemName].push({orderNum:orderNum,customer:customer,qty:qty});
     }
   }
 
-  // Build pending unmatched list
-  pendingUnmatched = Object.keys(unmatchedMap).map(function(name){
-    return {shopifyName:name, occurrences:unmatchedMap[name]};
+  // Merge new orders into existing
+  Object.keys(newOrderData).forEach(function(num){ orders[num]=newOrderData[num]; });
+
+  pendingUnmatched=Object.keys(unmatchedMap).map(function(name){
+    return {shopifyName:name,occurrences:unmatchedMap[name]};
   });
 
   rebuildNeeded();
+  saveSession();
 
-  var orderCount = Object.keys(orders).length;
-  document.getElementById('orders-loaded-txt').textContent = orderCount + ' orders loaded';
-  document.getElementById('orders-loaded-txt').style.color = 'var(--green)';
-  document.getElementById('csv-status').textContent = orderCount + ' orders loaded · ' + matched + ' line items matched';
+  var orderCount=Object.keys(orders).length;
+  document.getElementById('orders-loaded-txt').textContent=orderCount+' orders loaded';
+  document.getElementById('orders-loaded-txt').style.color='var(--green)';
+  document.getElementById('session-bar').classList.remove('visible');
+
+  var statusParts=[orderCount+' orders total'];
+  if(newOrders>0) statusParts.push(newOrders+' new added');
+  if(skippedOrders>0) statusParts.push(skippedOrders+' duplicates skipped');
+  statusParts.push(matched+' items matched');
+  document.getElementById('csv-status').textContent=statusParts.join(' · ');
   document.getElementById('drop-zone').classList.remove('visible');
 
-  if (pendingUnmatched.length > 0) {
+  if(pendingUnmatched.length>0) {
     showUnmatchedBox();
-    showFlash('Loaded ' + orderCount + ' orders — ' + pendingUnmatched.length + ' items need manual matching below', 'warn');
+    showFlash('Loaded — '+newOrders+' new orders added, '+skippedOrders+' duplicates skipped, '+pendingUnmatched.length+' items need manual matching below','warn');
   } else {
     document.getElementById('unmatched-box').classList.remove('visible');
-    showFlash('Loaded ' + orderCount + ' orders with ' + matched + ' line items — all matched!', 'ok');
+    var msg='Loaded — '+newOrders+' new orders added';
+    if(skippedOrders>0) msg+=', '+skippedOrders+' duplicate orders skipped';
+    showFlash(msg,'ok');
   }
 
-  renderProdGrid();
-  updateProdStats();
+  renderProdGrid(); updateProdStats();
 }
 
 function showUnmatchedBox() {
-  var box = document.getElementById('unmatched-box');
-  var list = document.getElementById('unmatched-list');
+  var box=document.getElementById('unmatched-box');
+  var list=document.getElementById('unmatched-list');
   box.classList.add('visible');
-  list.innerHTML = pendingUnmatched.map(function(u, idx) {
-    var options = '<option value="">— Select item —</option>';
-    SKUS.forEach(function(s){
-      options += '<option value="'+s.sku+'">'+s.sku+' — '+s.name+' ('+s.size+')</option>';
-    });
-    return '<div class="unmatched-item">'
-      + '<div class="unmatched-name">Shopify: "' + u.shopifyName + '" (' + u.occurrences.length + ' order(s))</div>'
-      + '<select class="unmatched-select" id="um-select-'+idx+'">' + options + '</select>'
-      + '</div>';
+  list.innerHTML=pendingUnmatched.map(function(u,idx){
+    var options='<option value="">— Select item —</option>';
+    SKUS.forEach(function(s){options+='<option value="'+s.sku+'">'+s.sku+' — '+s.name+' ('+s.size+')</option>';});
+    return '<div class="unmatched-item"><div class="unmatched-name">Shopify: "'+u.shopifyName+'" ('+u.occurrences.length+' order(s))</div><select class="unmatched-select" id="um-select-'+idx+'">'+options+'</select></div>';
   }).join('');
 }
 
 function applyManualMatches() {
-  var applied = 0;
-  pendingUnmatched.forEach(function(u, idx) {
-    var sel = document.getElementById('um-select-'+idx);
-    if (!sel || !sel.value) return;
-    var sku = sel.value;
-    u.occurrences.forEach(function(occ) {
-      if (!orders[occ.orderNum]) orders[occ.orderNum]={customer:occ.customer,items:[]};
-      var existing = orders[occ.orderNum].items.find(function(it){return it.sku===sku;});
-      if (existing) existing.qtyOrdered+=occ.qty;
+  var applied=0;
+  pendingUnmatched.forEach(function(u,idx){
+    var sel=document.getElementById('um-select-'+idx);
+    if(!sel||!sel.value) return;
+    var sku=sel.value;
+    u.occurrences.forEach(function(occ){
+      if(!orders[occ.orderNum]) orders[occ.orderNum]={customer:occ.customer,items:[]};
+      var existing=orders[occ.orderNum].items.find(function(it){return it.sku===sku;});
+      if(existing) existing.qtyOrdered+=occ.qty;
       else orders[occ.orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:occ.qty,qtyPacked:0});
       applied++;
     });
   });
-  // Remove matched ones
-  pendingUnmatched = pendingUnmatched.filter(function(u,idx){
-    var sel = document.getElementById('um-select-'+idx);
-    return !sel || !sel.value;
+  pendingUnmatched=pendingUnmatched.filter(function(u,idx){
+    var sel=document.getElementById('um-select-'+idx);
+    return !sel||!sel.value;
   });
-
   rebuildNeeded();
-  renderProdGrid();
-  updateProdStats();
-
-  if (pendingUnmatched.length === 0) {
+  saveSession();
+  renderProdGrid(); updateProdStats();
+  if(pendingUnmatched.length===0) {
     document.getElementById('unmatched-box').classList.remove('visible');
-    showFlash('All items matched! ' + applied + ' assignments applied.', 'ok');
+    showFlash('All items matched! '+applied+' assignments applied.','ok');
   } else {
     showUnmatchedBox();
-    showFlash(applied + ' items matched — ' + pendingUnmatched.length + ' still need assignment', 'warn');
+    showFlash(applied+' matched — '+pendingUnmatched.length+' still need assignment','warn');
   }
 }
 
@@ -514,6 +600,7 @@ function parseCSVLine(line) {
   return result;
 }
 
+// ── MODE ─────────────────────────────────────────────────
 function setMode(m) {
   mode=m;
   document.getElementById('panel-prod').classList.toggle('on',m==='prod');
@@ -524,6 +611,7 @@ function setMode(m) {
   if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
 }
 
+// ── FLASH ─────────────────────────────────────────────────
 var flashT;
 function showFlash(msg,type) {
   type=type||'ok';
@@ -533,6 +621,7 @@ function showFlash(msg,type) {
   flashT=setTimeout(function(){el.className='flash';},5000);
 }
 
+// ── PRODUCTION ────────────────────────────────────────────
 function prodScan() {
   var inp=document.getElementById('prod-input');
   var sku=inp.value.trim().toUpperCase();
@@ -541,10 +630,11 @@ function prodScan() {
   var item=SKU_MAP[sku];
   if(!item){showFlash('Unknown barcode: "'+sku+'" — not in menu','err');return;}
   prodCount[sku].done++;
-  totalScans++;
+  scanCounts[sku]=(scanCounts[sku]||0)+1;
   prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
-  var needed=prodCount[sku].needed, done=prodCount[sku].done;
-  showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ✅ ALL DONE!':''),'ok');
+  saveSession();
+  var needed=prodCount[sku].needed,done=prodCount[sku].done;
+  showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ALL DONE!':''),'ok');
   renderProdGrid(); updateProdStats(); renderProdHist();
 }
 
@@ -555,13 +645,11 @@ function renderProdGrid() {
   container.innerHTML='';
   for(var cat in cats){
     var sec=document.createElement('div');
-    sec.className='sec'; sec.textContent=cat;
-    container.appendChild(sec);
-    var grid=document.createElement('div');
-    grid.className='prod-grid';
+    sec.className='sec'; sec.textContent=cat; container.appendChild(sec);
+    var grid=document.createElement('div'); grid.className='prod-grid';
     cats[cat].forEach(function(item){
-      var needed=prodCount[item.sku].needed, done=prodCount[item.sku].done;
-      var isDone=needed>0&&done>=needed, isPartial=done>0&&!isDone;
+      var needed=prodCount[item.sku].needed,done=prodCount[item.sku].done;
+      var isDone=needed>0&&done>=needed,isPartial=done>0&&!isDone;
       grid.innerHTML+='<div class="pcard '+(isDone?'is-done':isPartial?'is-partial':'')+'"><div class="pcard-sku">'+item.sku+'</div><div class="pcard-name">'+item.name+'</div><div class="pcard-size">'+item.size+'</div><div class="pcard-counts"><div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num '+(needed===0?'d':'')+'">'+( needed||'—')+'</div></div><div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-num '+(done===0?'d':isDone?'g':'o')+'">'+done+'</div></div></div></div>';
     });
     container.appendChild(grid);
@@ -569,9 +657,9 @@ function renderProdGrid() {
 }
 
 function updateProdStats() {
-  var done=0,partial=0,zero=0;
+  var done=0,partial=0,zero=0,totalScans=0;
   SKUS.forEach(function(s){
-    var c=prodCount[s.sku];
+    var c=prodCount[s.sku]; totalScans+=c.done;
     if(c.done>=c.needed&&c.needed>0) done++;
     else if(c.done>0) partial++;
     else zero++;
@@ -590,16 +678,14 @@ function renderProdHist() {
   }).join('');
 }
 
+// ── PACK ──────────────────────────────────────────────────
 function loadOrder() {
   var inp=document.getElementById('order-input');
   var num=inp.value.trim().replace(/^#/,'');
   if(!num) return;
   var od=orders[num];
-  if(!od){
-    showFlash(Object.keys(orders).length===0?'No orders loaded — drop your CSV first':'Order #'+num+' not found','err');
-    return;
-  }
-  currentOrder={num:num,customer:od.customer,items:od.items.map(function(i){return Object.assign({},i,{qtyPacked:0});})};
+  if(!od){showFlash(Object.keys(orders).length===0?'No orders loaded — drop your CSV first':'Order #'+num+' not found','err');return;}
+  currentOrder={num:num,customer:od.customer,items:od.items.map(function(i){return Object.assign({},i);})};
   document.getElementById('h-order').textContent='#'+num;
   document.getElementById('h-cust').textContent=od.customer;
   document.getElementById('h-items').textContent=currentOrder.items.length+' items';
@@ -626,6 +712,13 @@ function packScan() {
   if(orderItem.qtyPacked>=orderItem.qtyOrdered){showFlash(orderItem.name+' already fully packed','warn');return;}
   orderItem.qtyPacked++;
   packHistory.unshift({t:now(),sku:sku,name:orderItem.name,orderNum:currentOrder.num});
+  // Save pack progress back to orders store
+  var storedOrder=orders[currentOrder.num];
+  if(storedOrder){
+    var storedItem=storedOrder.items.find(function(i){return i.sku===sku;});
+    if(storedItem) storedItem.qtyPacked=orderItem.qtyPacked;
+  }
+  saveSession();
   var rem=orderItem.qtyOrdered-orderItem.qtyPacked;
   showFlash(rem===0?orderItem.name+' — fully packed!':orderItem.name+' — '+orderItem.qtyPacked+'/'+orderItem.qtyOrdered+' ('+rem+' more)','ok');
   renderPackList(); updateProgress(); renderPackHist();
@@ -635,7 +728,7 @@ function renderPackList() {
   var el=document.getElementById('pack-list');
   if(!currentOrder||!currentOrder.items.length){el.innerHTML='';return;}
   el.innerHTML=currentOrder.items.map(function(item){
-    var packed=item.qtyPacked>=item.qtyOrdered, partial=item.qtyPacked>0&&!packed;
+    var packed=item.qtyPacked>=item.qtyOrdered,partial=item.qtyPacked>0&&!packed;
     var cls=packed?'packed':partial?'partial':'missing';
     var icon=packed?'✅':partial?'⏳':'○';
     return '<div class="pack-row '+cls+'"><div class="pack-dot">'+icon+'</div><div class="pack-info"><div class="pack-name">'+item.name+'</div><div class="pack-meta">'+item.size+' · '+item.sku+'</div></div><div class="pack-chip '+(packed?'done':'')+'">'+item.qtyPacked+' / '+item.qtyOrdered+'</div></div>';
@@ -646,8 +739,7 @@ function updateProgress() {
   if(!currentOrder) return;
   var total=currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
   var packed=currentOrder.items.reduce(function(s,i){return s+Math.min(i.qtyPacked,i.qtyOrdered);},0);
-  var pct=total>0?packed/total*100:0;
-  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-fill').style.width=(total>0?packed/total*100:0)+'%';
   document.getElementById('prog-text').textContent=packed+' of '+total+' items packed';
   if(packed>=total&&total>0){
     document.getElementById('h-status').textContent='✅ Complete!';
@@ -663,6 +755,7 @@ function renderPackHist() {
   }).join('');
 }
 
+// ── EXPORT ────────────────────────────────────────────────
 function exportProdCSV() {
   var rows=[['SKU','Item Name','Size','Category','Needed','Done','Still Need']];
   SKUS.forEach(function(s){
@@ -670,7 +763,7 @@ function exportProdCSV() {
     rows.push([s.sku,s.name,s.size,s.cat,c.needed||0,c.done,Math.max(0,(c.needed||0)-c.done)]);
   });
   downloadCSV(rows,'CookIt_Production_'+dateStamp()+'.csv');
-  showFlash('Exported! Open CSV and copy column F (Done) into your Google Sheet column E','ok');
+  showFlash('Exported! Copy column F (Done) into your Google Sheet column E','ok');
 }
 
 function exportOrdersCSV() {
@@ -688,8 +781,7 @@ function downloadCSV(rows,filename) {
   var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var blob=new Blob([csv],{type:'text/csv'});
   var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download=filename; a.click();
+  var a=document.createElement('a'); a.href=url; a.download=filename; a.click();
   URL.revokeObjectURL(url);
 }
 
@@ -702,8 +794,12 @@ function now() {
   return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
 }
 
+// ── INIT ──────────────────────────────────────────────────
+loadSession();
 renderProdGrid();
 updateProdStats();
+renderProdHist();
+renderPackHist();
 document.getElementById('prod-input').focus();
 </script>
 </body>
