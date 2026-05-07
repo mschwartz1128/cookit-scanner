@@ -1149,31 +1149,40 @@ function computeFifoAllocation() {
     });
   });
 
-  // For each SKU, allocate done units to orders FIFO by order number
-  // BUT: shipped/packed orders get their allocation first (they already consumed those units)
+  // For each SKU:
+  // Step 1 — deduct units consumed by packed/shipped orders from the pool
+  // Step 2 — FIFO allocate remaining units to unpacked orders by order number
   SKUS.forEach(function(s) {
     var sku = s.sku;
     var available = prodCount[sku] ? prodCount[sku].done : 0;
     if (available === 0) return;
 
-    // Sort orders: shipped/packed first, then by order number ascending
-    var needingOrders = Object.keys(orders)
-      .filter(function(num) {
-        return orders[num].items.some(function(item){ return item.sku === sku; });
-      })
-      .sort(function(a, b) {
-        var aShipped = orders[a].shipped || orders[a].packed ? 1 : 0;
-        var bShipped = orders[b].shipped || orders[b].packed ? 1 : 0;
-        if (bShipped !== aShipped) return bShipped - aShipped; // shipped first
-        return parseInt(a) - parseInt(b); // then by order number
-      });
+    // Step 1: packed/shipped orders consume from pool first
+    var packedOrders = Object.keys(orders).filter(function(num) {
+      return (orders[num].shipped || orders[num].packed) &&
+             orders[num].items.some(function(item){ return item.sku === sku; });
+    });
+    packedOrders.forEach(function(num) {
+      var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
+      if (!orderItem) return;
+      var consume = Math.min(available, orderItem.qtyOrdered);
+      allocation[num][sku] = consume;
+      available -= consume;
+    });
 
-    needingOrders.forEach(function(num) {
+    // Step 2: FIFO allocate remaining to unshipped orders by order number
+    var openOrders = Object.keys(orders)
+      .filter(function(num) {
+        return !orders[num].shipped && !orders[num].packed &&
+               orders[num].items.some(function(item){ return item.sku === sku; });
+      })
+      .sort(function(a, b) { return parseInt(a) - parseInt(b); });
+
+    openOrders.forEach(function(num) {
       if (available <= 0) return;
       var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
       if (!orderItem) return;
-      var needed = orderItem.qtyOrdered;
-      var give = Math.min(available, needed);
+      var give = Math.min(available, orderItem.qtyOrdered);
       allocation[num][sku] = give;
       available -= give;
     });
