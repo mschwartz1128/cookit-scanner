@@ -325,6 +325,11 @@ const STORE_KEY = 'cookit_session_v1';
 const AT_TOKEN   = 'patqL0wv6QWoP5tNj.9524a264c01a754ce132f396fe96659e749072eb19bc903d4f2ec9135c425c19';
 const AT_BASE    = 'app8Y8d551EjxrDpD';
 const AT_TABLE   = 'tblY0pDg1tLy64AzA';
+const AT_ORDERS_TABLE = 'tblAOjeSkgCtoIS3B';
+const AT_ORDERS_URL = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_ORDERS_TABLE;
+
+// Map orderNum -> Airtable record ID
+var atOrderRecordIds = {};
 const AT_URL     = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_TABLE;
 const AT_HEADERS = {'Authorization':'Bearer '+AT_TOKEN,'Content-Type':'application/json'};
 
@@ -418,6 +423,138 @@ function atPushAllCounts() {
       body: JSON.stringify({records:records})
     }).catch(function(e){console.warn('AT batch push failed:', e);});
   }
+}
+
+// Push all orders to Airtable Orders table
+function atSyncOrders() {
+  if (Object.keys(orders).length === 0) return;
+
+  // First fetch existing order records
+  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      // Build map of existing order numbers -> record IDs
+      if (data.records) {
+        data.records.forEach(function(rec) {
+          if (rec.fields && rec.fields['Order Number']) {
+            atOrderRecordIds[rec.fields['Order Number']] = rec.id;
+          }
+        });
+      }
+
+      // Find orders not yet in Airtable
+      var newOrders = Object.keys(orders).filter(function(num) {
+        return !atOrderRecordIds[num];
+      });
+
+      if (newOrders.length === 0) {
+        atUpdateOrderStatuses();
+        return;
+      }
+
+      // Create new order records in batches of 10
+      var batches = [];
+      for (var i = 0; i < newOrders.length; i += 10) {
+        batches.push(newOrders.slice(i, i + 10));
+      }
+
+      var chain = Promise.resolve();
+      batches.forEach(function(batch) {
+        chain = chain.then(function() {
+          var records = batch.map(function(num) {
+            var order = orders[num];
+            var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;}, 0);
+            return {fields: {
+              'Order Number': num,
+              'Customer': order.customer || '',
+              'Status': 'Not Ready',
+              'Shipped': false,
+              'Total Items': totalItems,
+              'Items Ready': 0
+            }};
+          });
+          return fetch(AT_ORDERS_URL, {
+            method: 'POST',
+            headers: AT_HEADERS,
+            body: JSON.stringify({records: records})
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            if (data.records) {
+              data.records.forEach(function(rec) {
+                if (rec.fields && rec.fields['Order Number']) {
+                  atOrderRecordIds[rec.fields['Order Number']] = rec.id;
+                }
+              });
+            }
+          });
+        });
+      });
+
+      chain.then(function() {
+        atUpdateOrderStatuses();
+      });
+    })
+    .catch(function(e){ console.warn('AT orders sync error:', e); });
+}
+
+// Update order statuses based on current production counts
+function atUpdateOrderStatuses() {
+  var updates = [];
+  Object.keys(orders).forEach(function(num) {
+    var recId = atOrderRecordIds[num];
+    if (!recId) return;
+    var order = orders[num];
+    var totalItems = 0, itemsReady = 0;
+    var allReady = true;
+    order.items.forEach(function(item) {
+      totalItems += item.qtyOrdered;
+      var done = prodCount[item.sku] ? prodCount[item.sku].done : 0;
+      var needed = prodCount[item.sku] ? prodCount[item.sku].needed : 0;
+      // Check if this item has enough cooked for this order
+      if (done >= needed && needed > 0) {
+        itemsReady += item.qtyOrdered;
+      } else {
+        allReady = false;
+      }
+    });
+    var shipped = order.shipped || false;
+    var status = shipped ? 'Shipped' : (allReady && totalItems > 0 ? 'Ready Now' : 'Not Ready');
+    updates.push({id: recId, fields: {
+      'Status': status,
+      'Total Items': totalItems,
+      'Items Ready': itemsReady,
+      'Shipped': shipped
+    }});
+  });
+
+  if (updates.length === 0) return;
+
+  // Batch update in groups of 10
+  for (var i = 0; i < updates.length; i += 10) {
+    var batch = updates.slice(i, i + 10);
+    fetch(AT_ORDERS_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records: batch})
+    }).catch(function(e){ console.warn('AT order status update failed:', e); });
+  }
+}
+
+// Clear orders from Airtable
+function atClearOrders() {
+  var recIds = Object.values(atOrderRecordIds);
+  if (recIds.length === 0) return;
+  // Delete in batches of 10
+  for (var i = 0; i < recIds.length; i += 10) {
+    var batch = recIds.slice(i, i + 10);
+    var query = batch.map(function(id){ return 'records[]=' + id; }).join('&');
+    fetch(AT_ORDERS_URL + '?' + query, {
+      method: 'DELETE',
+      headers: AT_HEADERS
+    }).catch(function(e){ console.warn('AT order delete failed:', e); });
+  }
+  atOrderRecordIds = {};
 }
 
 function atClearAll() {
@@ -515,6 +652,7 @@ function clearEverything() {
   pendingUnmatched = []; prodHistory = []; packHistory = [];
   SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
   atClearAll();
+  atClearOrders();
   document.getElementById('orders-loaded-txt').textContent = 'No orders loaded';
   document.getElementById('orders-loaded-txt').style.color = 'rgba(255,255,255,0.7)';
   document.getElementById('csv-status').textContent = 'No orders loaded — export your orders CSV from Shopify and drop it here';
@@ -639,6 +777,7 @@ function parseShopifyCSV(text) {
   rebuildNeeded();
   saveSession();
   atPushAllCounts();
+  atSyncOrders();
 
   var orderCount=Object.keys(orders).length;
   document.getElementById('orders-loaded-txt').textContent=orderCount+' orders loaded';
@@ -761,6 +900,7 @@ function prodScan() {
   prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
   saveSession();
   atPushScan(sku);
+  setTimeout(atUpdateOrderStatuses, 2000);
   var needed=prodCount[sku].needed,done=prodCount[sku].done;
   showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ALL DONE!':''),'ok');
   renderProdGrid(); updateProdStats(); renderProdHist();
