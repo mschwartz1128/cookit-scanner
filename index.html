@@ -420,6 +420,24 @@ function atPushAllCounts() {
   }
 }
 
+function atClearAll() {
+  // Reset all records in Airtable to 0
+  var skus = Object.keys(atRecordIds);
+  if (skus.length === 0) return;
+  for (var i=0; i<skus.length; i+=10) {
+    var batch = skus.slice(i,i+10);
+    var records = batch.map(function(sku) {
+      return {id:atRecordIds[sku], fields:{Done:0, Needed:0, 'Still Need':0}};
+    });
+    fetch(AT_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records:records})
+    }).catch(function(e){console.warn('AT clear failed:', e);});
+  }
+  updateAtStatus('✅ Airtable cleared', 'var(--green)');
+}
+
 function updateAtStatus(msg, color) {
   var el = document.getElementById('at-status');
   if (el) { el.textContent = msg; el.style.color = color; }
@@ -496,6 +514,7 @@ function clearEverything() {
   orders = {}; scanCounts = {}; currentOrder = null;
   pendingUnmatched = []; prodHistory = []; packHistory = [];
   SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
+  atClearAll();
   document.getElementById('orders-loaded-txt').textContent = 'No orders loaded';
   document.getElementById('orders-loaded-txt').style.color = 'rgba(255,255,255,0.7)';
   document.getElementById('csv-status').textContent = 'No orders loaded — export your orders CSV from Shopify and drop it here';
