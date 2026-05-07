@@ -261,6 +261,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       </div>
       <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
       <div class="prog-text" id="prog-text">0 of 0 items packed</div>
+      <div id="ship-btn-wrap" style="display:none;margin-top:12px;">
+        <button onclick="markShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:none;background:var(--green);color:#0a2016;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">✅ Mark as Shipped</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px;">Order is fully packed — click to mark shipped in Airtable</span>
+      </div>
     </div>
     <div id="pack-scan-wrap" style="display:none">
       <div class="scan-bar" style="border-color:rgba(37,99,235,0.35);background:#f0f5ff">
@@ -981,6 +985,7 @@ function loadOrder() {
   document.getElementById('order-hdr').classList.add('vis');
   document.getElementById('pack-scan-wrap').style.display='block';
   document.getElementById('pack-empty').style.display='none';
+  document.getElementById('ship-btn-wrap').style.display='none';
   renderPackList(); updateProgress();
   setTimeout(function(){document.getElementById('pack-input').focus();},50);
 }
@@ -1031,8 +1036,45 @@ function updateProgress() {
   document.getElementById('prog-text').textContent=packed+' of '+total+' items packed';
   if(packed>=total&&total>0){
     document.getElementById('h-status').textContent='✅ Complete!';
-    showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed!','ok');
+    document.getElementById('ship-btn-wrap').style.display='block';
+    showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed — mark it shipped!','ok');
+    // Update Airtable to Ready Now
+    atSetOrderStatus(currentOrder.num, 'Ready Now', total, total);
+  } else {
+    document.getElementById('ship-btn-wrap').style.display='none';
   }
+}
+
+function markShipped() {
+  if(!currentOrder) return;
+  var num = currentOrder.num;
+  if(!confirm('Mark Order #'+num+' for '+currentOrder.customer+' as SHIPPED?')) return;
+  // Mark in local orders store
+  if(orders[num]) orders[num].shipped = true;
+  saveSession();
+  // Update Airtable
+  var total = currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+  atSetOrderStatus(num, 'Shipped', total, total, true);
+  document.getElementById('h-status').textContent='🚚 Shipped!';
+  document.getElementById('ship-btn-wrap').style.display='none';
+  showFlash('Order #'+num+' marked as Shipped!','ok');
+  // Refresh cook next if visible
+  if(mode==='cook') renderCookNext();
+}
+
+function atSetOrderStatus(orderNum, status, totalItems, itemsReady, shipped) {
+  var recId = atOrderRecordIds[orderNum];
+  if(!recId) return;
+  fetch(AT_ORDERS_URL + '/' + recId, {
+    method: 'PATCH',
+    headers: AT_HEADERS,
+    body: JSON.stringify({fields:{
+      'Status': status,
+      'Total Items': totalItems,
+      'Items Ready': itemsReady,
+      'Shipped': shipped || false
+    }})
+  }).catch(function(e){ console.warn('AT order status failed:', e); });
 }
 
 function renderPackHist() {
@@ -1183,10 +1225,14 @@ function renderCookNext() {
     return b.stillNeed - a.stillNeed;
   });
 
-  // Ready orders using FIFO
+  // Ready orders using FIFO (not yet shipped)
   var readyOrders = Object.keys(orders).filter(function(num) {
     if (orders[num].shipped) return false;
     return fifo[num] && fifo[num].allReady;
+  });
+  // Also include orders marked ready via Pack & Verify
+  var shippedOrders = Object.keys(orders).filter(function(num) {
+    return orders[num].shipped;
   });
 
   // Render cook list
@@ -1208,18 +1254,29 @@ function renderCookNext() {
 
   // Render ready orders
   var readyEl = document.getElementById('ready-orders-list');
-  if (readyOrders.length === 0) {
+  if (readyOrders.length === 0 && shippedOrders.length === 0) {
     readyEl.innerHTML = '<div class="empty"><div class="empty-sub">No orders fully ready yet — keep cooking!</div></div>';
   } else {
-    readyEl.innerHTML = readyOrders.map(function(num) {
+    var html = '';
+    readyOrders.forEach(function(num) {
       var order = orders[num];
       var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
-      return '<div class="ready-row">'
+      html += '<div class="ready-row">'
         + '<div class="ready-icon">✅</div>'
         + '<div class="cook-info"><div class="ready-name">Order #'+num+' — '+order.customer+'</div>'
         + '<div class="ready-meta">'+order.items.length+' items · '+totalItems+' units — ready to pack!</div></div>'
         + '</div>';
-    }).join('');
+    });
+    shippedOrders.forEach(function(num) {
+      var order = orders[num];
+      var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+      html += '<div class="ready-row" style="opacity:0.6;background:#f0f0f0;border-color:#ccc;">'
+        + '<div class="ready-icon">🚚</div>'
+        + '<div class="cook-info"><div class="ready-name" style="color:var(--muted);">Order #'+num+' — '+order.customer+'</div>'
+        + '<div class="ready-meta">'+totalItems+' units — shipped</div></div>'
+        + '</div>';
+    });
+    readyEl.innerHTML = html;
   }
 }
 
