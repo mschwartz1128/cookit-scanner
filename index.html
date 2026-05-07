@@ -561,20 +561,26 @@ function atUpdateOrderStatuses() {
   }
 }
 
-// Clear orders from Airtable
+// Clear orders from Airtable — fetch all records first then delete
 function atClearOrders() {
-  var recIds = Object.values(atOrderRecordIds);
-  if (recIds.length === 0) return;
-  // Delete in batches of 10
-  for (var i = 0; i < recIds.length; i += 10) {
-    var batch = recIds.slice(i, i + 10);
-    var query = batch.map(function(id){ return 'records[]=' + id; }).join('&');
-    fetch(AT_ORDERS_URL + '?' + query, {
-      method: 'DELETE',
-      headers: AT_HEADERS
-    }).catch(function(e){ console.warn('AT order delete failed:', e); });
-  }
-  atOrderRecordIds = {};
+  // Always fetch from Airtable first in case local map is empty
+  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data.records || data.records.length === 0) return;
+      var recIds = data.records.map(function(r){ return r.id; });
+      // Delete in batches of 10
+      for (var i = 0; i < recIds.length; i += 10) {
+        var batch = recIds.slice(i, i + 10);
+        var query = batch.map(function(id){ return 'records[]=' + id; }).join('&');
+        fetch(AT_ORDERS_URL + '?' + query, {
+          method: 'DELETE',
+          headers: AT_HEADERS
+        }).catch(function(e){ console.warn('AT order delete failed:', e); });
+      }
+      atOrderRecordIds = {};
+    })
+    .catch(function(e){ console.warn('AT order clear fetch failed:', e); });
 }
 
 function atClearAll() {
