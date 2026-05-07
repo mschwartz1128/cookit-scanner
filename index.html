@@ -52,6 +52,13 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .drop-sub{font-size:12px;color:var(--muted);}
 .drop-how{margin-top:18px;padding:14px 18px;background:var(--surface2);border-radius:var(--r-sm);text-align:left;font-size:12px;line-height:1.8;color:var(--muted);}
 .drop-how strong{color:var(--text);}
+.unmatched-box{background:#fff8f0;border:1px solid rgba(217,119,6,0.3);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;display:none;}
+.unmatched-box.visible{display:block;}
+.unmatched-title{font-weight:700;font-size:13px;color:var(--orange);margin-bottom:10px;}
+.unmatched-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.unmatched-name{font-size:12px;font-weight:600;flex:1;min-width:200px;}
+.unmatched-select{padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--border2);font-family:'DM Sans',sans-serif;font-size:12px;background:white;cursor:pointer;}
+.unmatched-btn{padding:5px 12px;border-radius:var(--r-sm);border:none;background:var(--orange);color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;}
 .scan-bar{background:var(--surface);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;border:1px solid var(--border);}
 .scan-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
 .scan-row{display:flex;gap:10px;}
@@ -116,8 +123,6 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .hist-sku.g{color:var(--green);}.hist-sku.b{color:var(--blue);}
 .panel{display:none;}.panel.on{display:block;}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);}
-.empty-ico{font-size:32px;margin-bottom:10px;}
-.empty-title{font-size:14px;font-weight:600;color:var(--text);}
 .empty-sub{font-size:12px;margin-top:5px;}
 </style>
 </head>
@@ -168,6 +173,13 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     </div>
   </div>
 
+  <!-- UNMATCHED ITEMS BOX -->
+  <div class="unmatched-box" id="unmatched-box">
+    <div class="unmatched-title">⚠️ These Shopify items could not be matched — please assign them manually:</div>
+    <div id="unmatched-list"></div>
+    <button class="unmatched-btn" onclick="applyManualMatches()" style="margin-top:10px">Apply Matches</button>
+  </div>
+
   <!-- PRODUCTION PANEL -->
   <div class="panel on" id="panel-prod">
     <div class="scan-bar">
@@ -190,7 +202,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     </div>
     <div id="prod-cats"></div>
     <div class="sec">Recent Scans</div>
-    <div class="hist-list" id="prod-hist"><div class="empty" style="padding:16px"><div class="empty-sub">No scans yet</div></div></div>
+    <div class="hist-list" id="prod-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
   </div>
 
   <!-- PACK PANEL -->
@@ -223,12 +235,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <div class="pack-list" id="pack-list"></div>
     </div>
     <div class="empty" id="pack-empty">
-      <div class="empty-ico">📦</div>
-      <div class="empty-title">No order loaded</div>
       <div class="empty-sub">Enter an order number above to start packing</div>
     </div>
     <div class="sec">Pack History</div>
-    <div class="hist-list" id="pack-hist"><div class="empty" style="padding:16px"><div class="empty-sub">No scans yet</div></div></div>
+    <div class="hist-list" id="pack-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
   </div>
 </main>
 
@@ -287,67 +297,63 @@ const SKUS = [
 
 const SKU_MAP = {};
 const prodCount = {};
-SKUS.forEach(s => { SKU_MAP[s.sku] = s; prodCount[s.sku] = {needed:0, done:0}; });
+SKUS.forEach(function(s) { SKU_MAP[s.sku] = s; prodCount[s.sku] = {needed:0, done:0}; });
 
-const ALIASES = {
-  "cabbage pastrami eggrolls":"APP-001",
-  "glazed hassleback":"APP-002","glazed hasselback":"APP-002","hassleback":"APP-002","hasselback":"APP-002",
-  "chicken wontons":"APP-003","grilled oyster steak":"APP-004",
-  "sweet meatballs":"APP-005","sweet cocktail meatballs":"APP-005",
-  "barbecue pulled brisket":"APP-006","bbq pulled brisket":"APP-006",
-  "broccoli zucchini":"SOP-001","cream of chicken":"SOP-002",
-  "hearty flanken soup":"SOP-003","hearty flanken":"SOP-003",
-  "smoothie fruit":"SOP-004","split pea":"SOP-005",
-  "panko crusted salmon":"FSH-001","panko crusted":"FSH-001",
-  "rainbow salmon":"FSH-002","rainbow":"FSH-002",
-  "pecan crusted salmon":"FSH-003","pecan crusted":"FSH-003",
-  "salmon wellington pockets":"FSH-004","salmon wellington":"FSH-004",
-  "maple garlic":"FSH-005","maple garlic salmon":"FSH-005",
-  "chicken steak":"ENT-001","chicken steak ready to bake":"ENT-001",
-  "cornflake chicken":"ENT-002","cornflake chicken fingers":"ENT-002",
-  "corned beef":"ENT-003","french roast sweet":"ENT-004",
-  "french roast wine":"ENT-005","beer braised riblets":"ENT-006","riblets":"ENT-006",
-  "fruity flanken":"ENT-007","fruity infused flanken":"ENT-007",
-  "hot poppers":"ENT-008","marinated herb":"ENT-009",
-  "mini kishka":"ENT-010","kishka capons":"ENT-010",
-  "sesame chicken":"ENT-011","smokey barbecue brisket":"ENT-012","smokey brisket":"ENT-012",
-  "beef fry salad":"SAL-001","beef fry":"SAL-001",
-  "citrus summer":"SAL-002","classic grilled chicken":"SAL-003",
-  "cobb salad":"SAL-004","cobb":"SAL-004","loaded salad":"SAL-005","loaded":"SAL-005",
-  "butternut squash muffins":"SID-001","butternut squash":"SID-001",
-  "confetti rice":"SID-002",
-  "mushroom leek tarts":"SID-006","mushroom leek":"SID-006",
-  "potato puffs":"SID-007","mini potato puffs":"SID-007",
-  "pastrami orzo":"SID-008",
-  "sesame string beans":"SID-009","string beans":"SID-009",
-  "panko roasted cauliflower":"SID-010","cauliflower bites":"SID-010",
-  "chocolate chip lotus":"DES-001","lotus cups":"DES-001",
-  "chocolate souffle":"DES-002","frozen blueberry":"DES-003","blueberry crumble":"DES-003",
-  "lemon mousse":"DES-004","light lemon":"DES-004",
-  "plum galette":"DES-005","smores bar":"DES-006","s mores bar":"DES-006",
-  "grilled vegetables":"SID-005","cgrilled vegetables":"SID-005",
-};
-
-function normalizeName(str) {
-  return str.toLowerCase().replace(/[-–—]/g,' ').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+// Normalize a string for fuzzy matching
+function norm(str) {
+  return str.toLowerCase()
+    .replace(/[\u2018\u2019\u201c\u201d]/g,"'") // smart quotes
+    .replace(/[""'']/g,"")
+    .replace(/[-–—]/g," ")
+    .replace(/[^a-z0-9 ]/g," ")
+    .replace(/\s+/g," ").trim();
 }
 
+// Smart match: tries multiple strategies
 function shopifyNameToSKU(title) {
-  const base = title.replace(/\s*[-–]\s*(packed|half|9x13|9"|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,'').trim();
-  const norm = normalizeName(base);
-  if (ALIASES[norm]) return ALIASES[norm];
-  for (const [alias, sku] of Object.entries(ALIASES)) {
-    if (norm.includes(alias)) return sku;
+  // Strip size suffix
+  var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9[""'']?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
+  var n = norm(base);
+  var nFull = norm(title);
+
+  // Strategy 1: exact match on normalized base name
+  for (var i=0; i<SKUS.length; i++) {
+    if (norm(SKUS[i].name) === n) return SKUS[i].sku;
   }
+
+  // Strategy 2: exact match on full title
+  for (var i=0; i<SKUS.length; i++) {
+    if (norm(SKUS[i].name) === nFull) return SKUS[i].sku;
+  }
+
+  // Strategy 3: SKU name is contained in shopify title
+  for (var i=0; i<SKUS.length; i++) {
+    var sn = norm(SKUS[i].name);
+    if (nFull.indexOf(sn) !== -1 && sn.length > 6) return SKUS[i].sku;
+  }
+
+  // Strategy 4: shopify title words mostly match SKU name words
+  var titleWords = n.split(" ").filter(function(w){return w.length>3;});
+  var bestSku = null, bestScore = 0;
+  for (var i=0; i<SKUS.length; i++) {
+    var skuWords = norm(SKUS[i].name).split(" ").filter(function(w){return w.length>3;});
+    var matches = 0;
+    titleWords.forEach(function(w){ if(skuWords.indexOf(w)!==-1) matches++; });
+    var score = skuWords.length > 0 ? matches/skuWords.length : 0;
+    if (score > bestScore && score >= 0.6) { bestScore = score; bestSku = SKUS[i].sku; }
+  }
+  if (bestSku) return bestSku;
+
   return null;
 }
 
-let mode = 'prod';
-let orders = {};
-let currentOrder = null;
-let prodHistory = [];
-let packHistory = [];
-let totalScans = 0;
+var orders = {};
+var currentOrder = null;
+var pendingUnmatched = []; // [{shopifyName, qty, orderNum, customer}]
+var mode = 'prod';
+var prodHistory = [];
+var packHistory = [];
+var totalScans = 0;
 
 function toggleDropZone() {
   document.getElementById('drop-zone').classList.toggle('visible');
@@ -359,304 +365,337 @@ function fileChosen(e) { processFile(e.target.files[0]); }
 
 function processFile(file) {
   if (!file) return;
-  const existingCount = Object.keys(orders).length;
+  var existingCount = Object.keys(orders).length;
   if (existingCount > 0) {
-    const confirmed = confirm('You already have ' + existingCount + ' orders loaded.\n\nLoading a new CSV will OVERWRITE everything including packing progress.\n\nAre you sure?');
-    if (!confirmed) { document.getElementById('file-input').value = ''; return; }
+    var confirmed = confirm('You already have ' + existingCount + ' orders loaded.\n\nLoading a new CSV will OVERWRITE everything. Are you sure?');
+    if (!confirmed) { document.getElementById('file-input').value=''; return; }
   }
-  const reader = new FileReader();
+  var reader = new FileReader();
   reader.onload = function(e) { parseShopifyCSV(e.target.result); };
   reader.readAsText(file);
 }
 
 function parseShopifyCSV(text) {
-  const lines = text.split('\n');
-  if (lines.length < 2) { showFlash('CSV appears empty — try re-exporting from Shopify', 'err'); return; }
-  const header = parseCSVLine(lines[0]);
-  const col = {};
-  header.forEach(function(h,i) { col[h.trim().toLowerCase()] = i; });
+  var lines = text.split('\n');
+  if (lines.length < 2) { showFlash('CSV appears empty','err'); return; }
+  var header = parseCSVLine(lines[0]);
+  var col = {};
+  header.forEach(function(h,i){ col[h.trim().toLowerCase()]=i; });
 
-  const orderNumCol = col['name'] !== undefined ? col['name'] : col['order'];
-  const customerCol = col['billing name'] !== undefined ? col['billing name'] : col['email'];
-  const lineItemCol = col['lineitem name'] !== undefined ? col['lineitem name'] : col['lineitem_name'];
-  const qtyCol = col['lineitem quantity'] !== undefined ? col['lineitem quantity'] : col['lineitem_quantity'];
+  var orderNumCol = col['name']!==undefined ? col['name'] : col['order'];
+  var customerCol = col['billing name']!==undefined ? col['billing name'] : col['email'];
+  var lineItemCol = col['lineitem name']!==undefined ? col['lineitem name'] : col['lineitem_name'];
+  var qtyCol = col['lineitem quantity']!==undefined ? col['lineitem quantity'] : col['lineitem_quantity'];
 
-  if (orderNumCol === undefined || lineItemCol === undefined) {
-    showFlash('Could not read CSV columns — export as CSV for Excel from Shopify Orders', 'err');
+  if (orderNumCol===undefined || lineItemCol===undefined) {
+    showFlash('Could not read CSV columns — export as CSV for Excel from Shopify Orders','err');
     return;
   }
 
   orders = {};
-  let matched = 0, unmatched = 0;
-  const unmatchedNames = [];
+  pendingUnmatched = [];
+  var matched=0, unmatchedMap={};
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
+  for (var i=1; i<lines.length; i++) {
+    var line = lines[i].trim();
     if (!line) continue;
-    const cols = parseCSVLine(line);
+    var cols = parseCSVLine(line);
     if (!cols[orderNumCol]) continue;
-    const rawOrderNum = cols[orderNumCol].replace(/^#/,'').trim();
-    const customer = customerCol !== undefined ? (cols[customerCol] || 'Unknown') : 'Unknown';
-    const itemName = lineItemCol !== undefined ? (cols[lineItemCol] || '') : '';
-    const qty = parseInt(cols[qtyCol] || '1', 10) || 1;
+    var orderNum = cols[orderNumCol].replace(/^#/,'').trim();
+    var customer = customerCol!==undefined ? (cols[customerCol]||'Unknown') : 'Unknown';
+    var itemName = lineItemCol!==undefined ? (cols[lineItemCol]||'') : '';
+    var qty = parseInt(cols[qtyCol]||'1',10)||1;
     if (!itemName) continue;
-    if (!orders[rawOrderNum]) orders[rawOrderNum] = {customer:customer, items:[]};
-    const sku = shopifyNameToSKU(itemName);
+    if (!orders[orderNum]) orders[orderNum]={customer:customer,items:[]};
+    var sku = shopifyNameToSKU(itemName);
     if (sku) {
-      const existing = orders[rawOrderNum].items.find(function(it) { return it.sku === sku; });
-      if (existing) { existing.qtyOrdered += qty; }
-      else { orders[rawOrderNum].items.push({sku:sku, name:SKU_MAP[sku].name, size:SKU_MAP[sku].size, qtyOrdered:qty, qtyPacked:0}); }
+      var existing = orders[orderNum].items.find(function(it){return it.sku===sku;});
+      if (existing) existing.qtyOrdered+=qty;
+      else orders[orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:qty,qtyPacked:0});
       matched++;
     } else {
-      unmatched++;
-      if (unmatchedNames.indexOf(itemName) === -1) unmatchedNames.push(itemName);
+      if (!unmatchedMap[itemName]) unmatchedMap[itemName]=[];
+      unmatchedMap[itemName].push({orderNum:orderNum,customer:customer,qty:qty});
     }
   }
 
-  Object.keys(prodCount).forEach(function(s) { prodCount[s].needed = 0; });
-  Object.values(orders).forEach(function(order) {
-    order.items.forEach(function(item) { if (prodCount[item.sku]) prodCount[item.sku].needed += item.qtyOrdered; });
+  // Build pending unmatched list
+  pendingUnmatched = Object.keys(unmatchedMap).map(function(name){
+    return {shopifyName:name, occurrences:unmatchedMap[name]};
   });
 
-  const orderCount = Object.keys(orders).length;
-  if (orderCount === 0) { showFlash('No orders found in CSV — check the file and try again', 'err'); return; }
+  rebuildNeeded();
 
+  var orderCount = Object.keys(orders).length;
   document.getElementById('orders-loaded-txt').textContent = orderCount + ' orders loaded';
   document.getElementById('orders-loaded-txt').style.color = 'var(--green)';
   document.getElementById('csv-status').textContent = orderCount + ' orders loaded · ' + matched + ' line items matched';
   document.getElementById('drop-zone').classList.remove('visible');
 
-  var msg = 'Loaded ' + orderCount + ' orders with ' + matched + ' line items';
-  if (unmatched > 0) msg += ' · ' + unmatched + ' items could not be matched (' + unmatchedNames.slice(0,2).join(', ') + ')';
-  showFlash(msg, unmatched > 0 ? 'warn' : 'ok');
+  if (pendingUnmatched.length > 0) {
+    showUnmatchedBox();
+    showFlash('Loaded ' + orderCount + ' orders — ' + pendingUnmatched.length + ' items need manual matching below', 'warn');
+  } else {
+    document.getElementById('unmatched-box').classList.remove('visible');
+    showFlash('Loaded ' + orderCount + ' orders with ' + matched + ' line items — all matched!', 'ok');
+  }
 
   renderProdGrid();
   updateProdStats();
 }
 
+function showUnmatchedBox() {
+  var box = document.getElementById('unmatched-box');
+  var list = document.getElementById('unmatched-list');
+  box.classList.add('visible');
+  list.innerHTML = pendingUnmatched.map(function(u, idx) {
+    var options = '<option value="">— Select item —</option>';
+    SKUS.forEach(function(s){
+      options += '<option value="'+s.sku+'">'+s.sku+' — '+s.name+' ('+s.size+')</option>';
+    });
+    return '<div class="unmatched-item">'
+      + '<div class="unmatched-name">Shopify: "' + u.shopifyName + '" (' + u.occurrences.length + ' order(s))</div>'
+      + '<select class="unmatched-select" id="um-select-'+idx+'">' + options + '</select>'
+      + '</div>';
+  }).join('');
+}
+
+function applyManualMatches() {
+  var applied = 0;
+  pendingUnmatched.forEach(function(u, idx) {
+    var sel = document.getElementById('um-select-'+idx);
+    if (!sel || !sel.value) return;
+    var sku = sel.value;
+    u.occurrences.forEach(function(occ) {
+      if (!orders[occ.orderNum]) orders[occ.orderNum]={customer:occ.customer,items:[]};
+      var existing = orders[occ.orderNum].items.find(function(it){return it.sku===sku;});
+      if (existing) existing.qtyOrdered+=occ.qty;
+      else orders[occ.orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:occ.qty,qtyPacked:0});
+      applied++;
+    });
+  });
+  // Remove matched ones
+  pendingUnmatched = pendingUnmatched.filter(function(u,idx){
+    var sel = document.getElementById('um-select-'+idx);
+    return !sel || !sel.value;
+  });
+
+  rebuildNeeded();
+  renderProdGrid();
+  updateProdStats();
+
+  if (pendingUnmatched.length === 0) {
+    document.getElementById('unmatched-box').classList.remove('visible');
+    showFlash('All items matched! ' + applied + ' assignments applied.', 'ok');
+  } else {
+    showUnmatchedBox();
+    showFlash(applied + ' items matched — ' + pendingUnmatched.length + ' still need assignment', 'warn');
+  }
+}
+
+function rebuildNeeded() {
+  Object.keys(prodCount).forEach(function(s){prodCount[s].needed=0;});
+  Object.values(orders).forEach(function(order){
+    order.items.forEach(function(item){
+      if(prodCount[item.sku]) prodCount[item.sku].needed+=item.qtyOrdered;
+    });
+  });
+}
+
 function parseCSVLine(line) {
-  const result = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
-    else cur += c;
+  var result=[],cur='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
   }
   result.push(cur);
   return result;
 }
 
 function setMode(m) {
-  mode = m;
-  document.getElementById('panel-prod').classList.toggle('on', m==='prod');
-  document.getElementById('panel-pack').classList.toggle('on', m==='pack');
-  document.getElementById('pill-prod').className = 'pill' + (m==='prod' ? ' p-active' : '');
-  document.getElementById('pill-pack').className = 'pill' + (m==='pack' ? ' k-active' : '');
-  if (m==='prod') setTimeout(function() { document.getElementById('prod-input').focus(); }, 50);
-  if (m==='pack') setTimeout(function() { document.getElementById('order-input').focus(); }, 50);
+  mode=m;
+  document.getElementById('panel-prod').classList.toggle('on',m==='prod');
+  document.getElementById('panel-pack').classList.toggle('on',m==='pack');
+  document.getElementById('pill-prod').className='pill'+(m==='prod'?' p-active':'');
+  document.getElementById('pill-pack').className='pill'+(m==='pack'?' k-active':'');
+  if(m==='prod') setTimeout(function(){document.getElementById('prod-input').focus();},50);
+  if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
 }
 
 var flashT;
-function showFlash(msg, type) {
-  type = type || 'ok';
-  const el = document.getElementById('flash');
-  el.textContent = msg;
-  el.className = 'flash ' + type;
+function showFlash(msg,type) {
+  type=type||'ok';
+  var el=document.getElementById('flash');
+  el.textContent=msg; el.className='flash '+type;
   clearTimeout(flashT);
-  flashT = setTimeout(function() { el.className = 'flash'; }, 4000);
+  flashT=setTimeout(function(){el.className='flash';},5000);
 }
 
 function prodScan() {
-  const inp = document.getElementById('prod-input');
-  const sku = inp.value.trim().toUpperCase();
-  inp.value = ''; inp.focus();
-  if (!sku) return;
-  const item = SKU_MAP[sku];
-  if (!item) { showFlash('Unknown barcode: "' + sku + '" — not in menu', 'err'); return; }
+  var inp=document.getElementById('prod-input');
+  var sku=inp.value.trim().toUpperCase();
+  inp.value=''; inp.focus();
+  if(!sku) return;
+  var item=SKU_MAP[sku];
+  if(!item){showFlash('Unknown barcode: "'+sku+'" — not in menu','err');return;}
   prodCount[sku].done++;
   totalScans++;
-  const t = now();
-  prodHistory.unshift({t:t, sku:sku, name:item.name, count:prodCount[sku].done});
-  const needed = prodCount[sku].needed;
-  const done = prodCount[sku].done;
-  var msg = needed > 0
-    ? (item.name + ' — ' + done + ' of ' + needed + ' made' + (done >= needed ? ' ALL DONE!' : ''))
-    : (item.name + ' — ' + done + ' made');
-  showFlash(msg, 'ok');
-  renderProdGrid();
-  updateProdStats();
-  renderProdHist();
+  prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
+  var needed=prodCount[sku].needed, done=prodCount[sku].done;
+  showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ✅ ALL DONE!':''),'ok');
+  renderProdGrid(); updateProdStats(); renderProdHist();
 }
 
 function renderProdGrid() {
-  const cats = {};
-  SKUS.forEach(function(s) { if (!cats[s.cat]) cats[s.cat] = []; cats[s.cat].push(s); });
-  const container = document.getElementById('prod-cats');
-  container.innerHTML = '';
-  for (const cat in cats) {
-    const sec = document.createElement('div');
-    sec.className = 'sec'; sec.textContent = cat;
+  var cats={};
+  SKUS.forEach(function(s){if(!cats[s.cat])cats[s.cat]=[];cats[s.cat].push(s);});
+  var container=document.getElementById('prod-cats');
+  container.innerHTML='';
+  for(var cat in cats){
+    var sec=document.createElement('div');
+    sec.className='sec'; sec.textContent=cat;
     container.appendChild(sec);
-    const grid = document.createElement('div');
-    grid.className = 'prod-grid';
-    cats[cat].forEach(function(item) {
-      const needed = prodCount[item.sku].needed;
-      const done = prodCount[item.sku].done;
-      const isDone = needed > 0 && done >= needed;
-      const isPartial = done > 0 && !isDone;
-      grid.innerHTML += '<div class="pcard ' + (isDone?'is-done':isPartial?'is-partial':'') + '">'
-        + '<div class="pcard-sku">' + item.sku + '</div>'
-        + '<div class="pcard-name">' + item.name + '</div>'
-        + '<div class="pcard-size">' + item.size + '</div>'
-        + '<div class="pcard-counts">'
-        + '<div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num ' + (needed===0?'d':'') + '">' + (needed||'—') + '</div></div>'
-        + '<div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-num ' + (done===0?'d':isDone?'g':'o') + '">' + done + '</div></div>'
-        + '</div></div>';
+    var grid=document.createElement('div');
+    grid.className='prod-grid';
+    cats[cat].forEach(function(item){
+      var needed=prodCount[item.sku].needed, done=prodCount[item.sku].done;
+      var isDone=needed>0&&done>=needed, isPartial=done>0&&!isDone;
+      grid.innerHTML+='<div class="pcard '+(isDone?'is-done':isPartial?'is-partial':'')+'"><div class="pcard-sku">'+item.sku+'</div><div class="pcard-name">'+item.name+'</div><div class="pcard-size">'+item.size+'</div><div class="pcard-counts"><div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num '+(needed===0?'d':'')+'">'+( needed||'—')+'</div></div><div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-num '+(done===0?'d':isDone?'g':'o')+'">'+done+'</div></div></div></div>';
     });
     container.appendChild(grid);
   }
 }
 
 function updateProdStats() {
-  var done=0, partial=0, zero=0;
-  SKUS.forEach(function(s) {
-    const c = prodCount[s.sku];
-    if (c.done >= c.needed && c.needed > 0) done++;
-    else if (c.done > 0) partial++;
+  var done=0,partial=0,zero=0;
+  SKUS.forEach(function(s){
+    var c=prodCount[s.sku];
+    if(c.done>=c.needed&&c.needed>0) done++;
+    else if(c.done>0) partial++;
     else zero++;
   });
-  document.getElementById('s-done').textContent = done;
-  document.getElementById('s-partial').textContent = partial;
-  document.getElementById('s-zero').textContent = zero;
-  document.getElementById('s-scans').textContent = totalScans;
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-partial').textContent=partial;
+  document.getElementById('s-zero').textContent=zero;
+  document.getElementById('s-scans').textContent=totalScans;
 }
 
 function renderProdHist() {
-  const el = document.getElementById('prod-hist');
-  if (!prodHistory.length) { el.innerHTML = '<div class="empty" style="padding:12px"><div class="empty-sub">No scans yet</div></div>'; return; }
-  el.innerHTML = prodHistory.slice(0,20).map(function(h) {
-    return '<div class="hist-row"><span class="hist-time">' + h.t + '</span><span class="hist-sku g">' + h.sku + '</span><span>' + h.name + ' — <strong>#' + h.count + '</strong> made</span></div>';
+  var el=document.getElementById('prod-hist');
+  if(!prodHistory.length){el.innerHTML='<div class="empty"><div class="empty-sub">No scans yet</div></div>';return;}
+  el.innerHTML=prodHistory.slice(0,20).map(function(h){
+    return '<div class="hist-row"><span class="hist-time">'+h.t+'</span><span class="hist-sku g">'+h.sku+'</span><span>'+h.name+' — <strong>#'+h.count+'</strong> made</span></div>';
   }).join('');
 }
 
 function loadOrder() {
-  const inp = document.getElementById('order-input');
-  const num = inp.value.trim().replace(/^#/,'');
-  if (!num) return;
-  const od = orders[num];
-  if (!od) {
-    if (Object.keys(orders).length === 0) showFlash('No orders loaded yet — drop your Shopify CSV first', 'warn');
-    else showFlash('Order #' + num + ' not found — check the number or reload your CSV', 'err');
+  var inp=document.getElementById('order-input');
+  var num=inp.value.trim().replace(/^#/,'');
+  if(!num) return;
+  var od=orders[num];
+  if(!od){
+    showFlash(Object.keys(orders).length===0?'No orders loaded — drop your CSV first':'Order #'+num+' not found','err');
     return;
   }
-  currentOrder = {num:num, customer:od.customer, items:od.items.map(function(i) { return Object.assign({},i,{qtyPacked:0}); })};
-  document.getElementById('h-order').textContent = '#' + num;
-  document.getElementById('h-cust').textContent = od.customer;
-  document.getElementById('h-items').textContent = currentOrder.items.length + ' items';
-  document.getElementById('h-status').textContent = 'Packing';
+  currentOrder={num:num,customer:od.customer,items:od.items.map(function(i){return Object.assign({},i,{qtyPacked:0});})};
+  document.getElementById('h-order').textContent='#'+num;
+  document.getElementById('h-cust').textContent=od.customer;
+  document.getElementById('h-items').textContent=currentOrder.items.length+' items';
+  document.getElementById('h-status').textContent='Packing';
   document.getElementById('order-hdr').classList.add('vis');
-  document.getElementById('pack-scan-wrap').style.display = 'block';
-  document.getElementById('pack-empty').style.display = 'none';
-  renderPackList();
-  updateProgress();
-  setTimeout(function() { document.getElementById('pack-input').focus(); }, 50);
+  document.getElementById('pack-scan-wrap').style.display='block';
+  document.getElementById('pack-empty').style.display='none';
+  renderPackList(); updateProgress();
+  setTimeout(function(){document.getElementById('pack-input').focus();},50);
 }
 
 function packScan() {
-  if (!currentOrder) { showFlash('Load an order first', 'warn'); return; }
-  const inp = document.getElementById('pack-input');
-  const sku = inp.value.trim().toUpperCase();
-  inp.value = ''; inp.focus();
-  if (!sku) return;
-  const orderItem = currentOrder.items.find(function(i) { return i.sku === sku; });
-  if (!orderItem) {
-    const globalItem = SKU_MAP[sku];
-    if (globalItem) showFlash(globalItem.name + ' is NOT on Order #' + currentOrder.num + ' — wrong box?', 'err');
-    else showFlash('Unknown barcode: "' + sku + '"', 'err');
+  if(!currentOrder){showFlash('Load an order first','warn');return;}
+  var inp=document.getElementById('pack-input');
+  var sku=inp.value.trim().toUpperCase();
+  inp.value=''; inp.focus();
+  if(!sku) return;
+  var orderItem=currentOrder.items.find(function(i){return i.sku===sku;});
+  if(!orderItem){
+    var gi=SKU_MAP[sku];
+    showFlash(gi?gi.name+' is NOT on Order #'+currentOrder.num+' — wrong box?':'Unknown barcode: "'+sku+'"','err');
     return;
   }
-  if (orderItem.qtyPacked >= orderItem.qtyOrdered) {
-    showFlash(orderItem.name + ' already fully packed (' + orderItem.qtyOrdered + '/' + orderItem.qtyOrdered + ')', 'warn');
-    return;
-  }
+  if(orderItem.qtyPacked>=orderItem.qtyOrdered){showFlash(orderItem.name+' already fully packed','warn');return;}
   orderItem.qtyPacked++;
-  const t = now();
-  packHistory.unshift({t:t, sku:sku, name:orderItem.name, orderNum:currentOrder.num});
-  const rem = orderItem.qtyOrdered - orderItem.qtyPacked;
-  showFlash(rem === 0 ? (orderItem.name + ' — fully packed!') : (orderItem.name + ' — ' + orderItem.qtyPacked + '/' + orderItem.qtyOrdered + ' packed (' + rem + ' more)'), 'ok');
-  renderPackList();
-  updateProgress();
-  renderPackHist();
+  packHistory.unshift({t:now(),sku:sku,name:orderItem.name,orderNum:currentOrder.num});
+  var rem=orderItem.qtyOrdered-orderItem.qtyPacked;
+  showFlash(rem===0?orderItem.name+' — fully packed!':orderItem.name+' — '+orderItem.qtyPacked+'/'+orderItem.qtyOrdered+' ('+rem+' more)','ok');
+  renderPackList(); updateProgress(); renderPackHist();
 }
 
 function renderPackList() {
-  const el = document.getElementById('pack-list');
-  if (!currentOrder || !currentOrder.items.length) { el.innerHTML = ''; return; }
-  el.innerHTML = currentOrder.items.map(function(item) {
-    const packed = item.qtyPacked >= item.qtyOrdered;
-    const partial = item.qtyPacked > 0 && !packed;
-    const cls = packed ? 'packed' : partial ? 'partial' : 'missing';
-    const icon = packed ? '✅' : partial ? '⏳' : '○';
-    return '<div class="pack-row ' + cls + '"><div class="pack-dot">' + icon + '</div><div class="pack-info"><div class="pack-name">' + item.name + '</div><div class="pack-meta">' + item.size + ' · ' + item.sku + '</div></div><div class="pack-chip ' + (packed?'done':'') + '">' + item.qtyPacked + ' / ' + item.qtyOrdered + '</div></div>';
+  var el=document.getElementById('pack-list');
+  if(!currentOrder||!currentOrder.items.length){el.innerHTML='';return;}
+  el.innerHTML=currentOrder.items.map(function(item){
+    var packed=item.qtyPacked>=item.qtyOrdered, partial=item.qtyPacked>0&&!packed;
+    var cls=packed?'packed':partial?'partial':'missing';
+    var icon=packed?'✅':partial?'⏳':'○';
+    return '<div class="pack-row '+cls+'"><div class="pack-dot">'+icon+'</div><div class="pack-info"><div class="pack-name">'+item.name+'</div><div class="pack-meta">'+item.size+' · '+item.sku+'</div></div><div class="pack-chip '+(packed?'done':'')+'">'+item.qtyPacked+' / '+item.qtyOrdered+'</div></div>';
   }).join('');
 }
 
 function updateProgress() {
-  if (!currentOrder) return;
-  const total = currentOrder.items.reduce(function(s,i) { return s+i.qtyOrdered; }, 0);
-  const packed = currentOrder.items.reduce(function(s,i) { return s+Math.min(i.qtyPacked,i.qtyOrdered); }, 0);
-  const pct = total > 0 ? packed/total*100 : 0;
-  document.getElementById('prog-fill').style.width = pct + '%';
-  document.getElementById('prog-text').textContent = packed + ' of ' + total + ' items packed';
-  if (packed >= total && total > 0) {
-    document.getElementById('h-status').textContent = 'Complete!';
-    showFlash('Order #' + currentOrder.num + ' for ' + currentOrder.customer + ' is fully packed!', 'ok');
+  if(!currentOrder) return;
+  var total=currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+  var packed=currentOrder.items.reduce(function(s,i){return s+Math.min(i.qtyPacked,i.qtyOrdered);},0);
+  var pct=total>0?packed/total*100:0;
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-text').textContent=packed+' of '+total+' items packed';
+  if(packed>=total&&total>0){
+    document.getElementById('h-status').textContent='✅ Complete!';
+    showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed!','ok');
   }
 }
 
 function renderPackHist() {
-  const el = document.getElementById('pack-hist');
-  if (!packHistory.length) { el.innerHTML = '<div class="empty" style="padding:12px"><div class="empty-sub">No scans yet</div></div>'; return; }
-  el.innerHTML = packHistory.slice(0,20).map(function(h) {
-    return '<div class="hist-row"><span class="hist-time">' + h.t + '</span><span class="hist-sku b">' + h.sku + '</span><span>' + h.name + ' → Order #' + h.orderNum + '</span></div>';
+  var el=document.getElementById('pack-hist');
+  if(!packHistory.length){el.innerHTML='<div class="empty"><div class="empty-sub">No scans yet</div></div>';return;}
+  el.innerHTML=packHistory.slice(0,20).map(function(h){
+    return '<div class="hist-row"><span class="hist-time">'+h.t+'</span><span class="hist-sku b">'+h.sku+'</span><span>'+h.name+' → Order #'+h.orderNum+'</span></div>';
   }).join('');
 }
 
 function exportProdCSV() {
-  const rows = [['SKU','Item Name','Size','Category','Needed','Done','Still Need']];
-  SKUS.forEach(function(s) {
-    const c = prodCount[s.sku];
-    rows.push([s.sku, s.name, s.size, s.cat, c.needed||0, c.done, Math.max(0,(c.needed||0)-c.done)]);
+  var rows=[['SKU','Item Name','Size','Category','Needed','Done','Still Need']];
+  SKUS.forEach(function(s){
+    var c=prodCount[s.sku];
+    rows.push([s.sku,s.name,s.size,s.cat,c.needed||0,c.done,Math.max(0,(c.needed||0)-c.done)]);
   });
-  downloadCSV(rows, 'CookIt_Production_' + dateStamp() + '.csv');
-  showFlash('Production counts exported! Open the CSV and copy column F (Done) into your Google Sheet column E', 'ok');
+  downloadCSV(rows,'CookIt_Production_'+dateStamp()+'.csv');
+  showFlash('Exported! Open CSV and copy column F (Done) into your Google Sheet column E','ok');
 }
 
 function exportOrdersCSV() {
-  if (!currentOrder) { showFlash('Load an order first in Pack mode', 'warn'); return; }
-  const rows = [['Order #','Customer','SKU','Item Name','Size','Qty Ordered','Qty Packed','Status']];
-  currentOrder.items.forEach(function(item) {
-    const packed = item.qtyPacked >= item.qtyOrdered;
-    const status = packed ? 'Packed' : item.qtyPacked > 0 ? 'Partial' : 'Missing';
-    rows.push([currentOrder.num, currentOrder.customer, item.sku, item.name, item.size, item.qtyOrdered, item.qtyPacked, status]);
+  if(!currentOrder){showFlash('Load an order first in Pack mode','warn');return;}
+  var rows=[['Order #','Customer','SKU','Item Name','Size','Qty Ordered','Qty Packed','Status']];
+  currentOrder.items.forEach(function(item){
+    var packed=item.qtyPacked>=item.qtyOrdered;
+    rows.push([currentOrder.num,currentOrder.customer,item.sku,item.name,item.size,item.qtyOrdered,item.qtyPacked,packed?'Packed':item.qtyPacked>0?'Partial':'Missing']);
   });
-  downloadCSV(rows, 'CookIt_Order_' + currentOrder.num + '_' + dateStamp() + '.csv');
-  showFlash('Order pack status exported!', 'ok');
+  downloadCSV(rows,'CookIt_Order_'+currentOrder.num+'_'+dateStamp()+'.csv');
+  showFlash('Order pack status exported!','ok');
 }
 
-function downloadCSV(rows, filename) {
-  const csv = rows.map(function(r) { return r.map(function(v) { return '"' + String(v).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+function downloadCSV(rows,filename) {
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=filename; a.click();
   URL.revokeObjectURL(url);
 }
 
 function dateStamp() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
 function now() {
