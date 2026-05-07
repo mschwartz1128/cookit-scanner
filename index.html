@@ -1038,8 +1038,13 @@ function updateProgress() {
     document.getElementById('h-status').textContent='✅ Complete!';
     document.getElementById('ship-btn-wrap').style.display='block';
     showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed — mark it shipped!','ok');
+    // Mark order as packed locally so FIFO excludes it from pool
+    if(orders[currentOrder.num]) orders[currentOrder.num].packed = true;
+    saveSession();
     // Update Airtable to Ready Now
     atSetOrderStatus(currentOrder.num, 'Ready Now', total, total);
+    // Refresh order statuses so FIFO recalculates
+    setTimeout(atUpdateOrderStatuses, 500);
   } else {
     document.getElementById('ship-btn-wrap').style.display='none';
   }
@@ -1050,7 +1055,7 @@ function markShipped() {
   var num = currentOrder.num;
   if(!confirm('Mark Order #'+num+' for '+currentOrder.customer+' as SHIPPED?')) return;
   // Mark in local orders store
-  if(orders[num]) orders[num].shipped = true;
+  if(orders[num]) { orders[num].shipped = true; orders[num].packed = true; }
   saveSession();
   // Update Airtable
   var total = currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
@@ -1139,17 +1144,23 @@ function computeFifoAllocation() {
   });
 
   // For each SKU, allocate done units to orders FIFO by order number
+  // BUT: shipped/packed orders get their allocation first (they already consumed those units)
   SKUS.forEach(function(s) {
     var sku = s.sku;
     var available = prodCount[sku] ? prodCount[sku].done : 0;
     if (available === 0) return;
 
-    // Get all orders that need this SKU, sorted by order number ascending
+    // Sort orders: shipped/packed first, then by order number ascending
     var needingOrders = Object.keys(orders)
       .filter(function(num) {
         return orders[num].items.some(function(item){ return item.sku === sku; });
       })
-      .sort(function(a, b) { return parseInt(a) - parseInt(b); });
+      .sort(function(a, b) {
+        var aShipped = orders[a].shipped || orders[a].packed ? 1 : 0;
+        var bShipped = orders[b].shipped || orders[b].packed ? 1 : 0;
+        if (bShipped !== aShipped) return bShipped - aShipped; // shipped first
+        return parseInt(a) - parseInt(b); // then by order number
+      });
 
     needingOrders.forEach(function(num) {
       if (available <= 0) return;
