@@ -132,6 +132,23 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .panel{display:none;}.panel.on{display:block;}
 .empty{text-align:center;padding:40px 20px;color:var(--muted);}
 .empty-sub{font-size:12px;margin-top:5px;}
+.cook-row{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 16px;margin-bottom:7px;}
+.cook-row.urgent{border-color:rgba(220,38,38,0.35);background:rgba(220,38,38,0.03);}
+.cook-row.medium{border-color:rgba(217,119,6,0.35);}
+.cook-badge{min-width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-weight:700;}
+.cook-badge.urgent{background:var(--red-dim);color:var(--red);}
+.cook-badge.medium{background:var(--orange-dim);color:var(--orange);}
+.cook-badge.low{background:var(--blue-dim);color:var(--blue);}
+.cook-badge-num{font-size:18px;line-height:1;}
+.cook-badge-lbl{font-size:8px;text-transform:uppercase;letter-spacing:0.5px;margin-top:1px;}
+.cook-info{flex:1;}
+.cook-name{font-weight:600;font-size:13px;}
+.cook-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.cook-still{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--red);text-align:right;}
+.ready-row{display:flex;align-items:center;gap:12px;background:#f0fff8;border:1px solid rgba(24,168,90,0.3);border-radius:var(--r-sm);padding:11px 15px;margin-bottom:7px;}
+.ready-name{font-weight:700;font-size:13px;color:var(--green);}
+.ready-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.ready-icon{font-size:20px;}
 </style>
 </head>
 <body>
@@ -151,6 +168,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div class="mode-pills">
       <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
       <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
+      <button class="pill" id="pill-cook" onclick="setMode('cook')">🎯 Cook Next</button>
     </div>
     <button class="clear-btn" onclick="clearEverything()">🗑 Clear All</button>
   </div>
@@ -257,6 +275,17 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div class="empty" id="pack-empty"><div class="empty-sub">Enter an order number above to start packing</div></div>
     <div class="sec">Pack History</div>
     <div class="hist-list" id="pack-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
+  </div>
+
+  <!-- COOK NEXT PANEL -->
+  <div class="panel" id="panel-cook">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Cook Next — Priority List</div>
+      <div style="font-size:12px;color:var(--muted);">Items sorted by how many orders they are blocking. Cook the top items first to get the most orders ready.</div>
+    </div>
+    <div id="cook-next-list"></div>
+    <div class="sec">Orders Ready to Pack</div>
+    <div id="ready-orders-list"><div class="empty"><div class="empty-sub">No orders ready yet</div></div></div>
   </div>
 </main>
 
@@ -871,10 +900,13 @@ function setMode(m) {
   mode=m;
   document.getElementById('panel-prod').classList.toggle('on',m==='prod');
   document.getElementById('panel-pack').classList.toggle('on',m==='pack');
+  document.getElementById('panel-cook').classList.toggle('on',m==='cook');
   document.getElementById('pill-prod').className='pill'+(m==='prod'?' p-active':'');
   document.getElementById('pill-pack').className='pill'+(m==='pack'?' k-active':'');
+  document.getElementById('pill-cook').className='pill'+(m==='cook'?' p-active':'');
   if(m==='prod') setTimeout(function(){document.getElementById('prod-input').focus();},50);
   if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
+  if(m==='cook') renderCookNext();
 }
 
 // ── FLASH ─────────────────────────────────────────────────
@@ -901,6 +933,7 @@ function prodScan() {
   saveSession();
   atPushScan(sku);
   setTimeout(atUpdateOrderStatuses, 2000);
+  if(mode==='cook') renderCookNext();
   var needed=prodCount[sku].needed,done=prodCount[sku].done;
   showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ALL DONE!':''),'ok');
   renderProdGrid(); updateProdStats(); renderProdHist();
@@ -1060,6 +1093,92 @@ function dateStamp() {
 
 function now() {
   return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+
+// ── COOK NEXT ────────────────────────────────────────────
+function renderCookNext() {
+  // For each SKU, count how many NOT-YET-ready orders are blocked by it
+  var skuBlockCount = {};
+  var skuStillNeed = {};
+  SKUS.forEach(function(s) {
+    skuBlockCount[s.sku] = 0;
+    skuStillNeed[s.sku] = Math.max(0, (prodCount[s.sku].needed||0) - prodCount[s.sku].done);
+  });
+
+  // Count orders blocked by each SKU
+  Object.values(orders).forEach(function(order) {
+    if (order.shipped) return;
+    // Check if this order is fully ready
+    var orderReady = order.items.every(function(item) {
+      return prodCount[item.sku] && prodCount[item.sku].done >= prodCount[item.sku].needed && prodCount[item.sku].needed > 0;
+    });
+    if (orderReady) return; // already ready, not blocked
+
+    // Find which items are blocking this order
+    order.items.forEach(function(item) {
+      var c = prodCount[item.sku];
+      if (!c) return;
+      if (c.done < c.needed || c.needed === 0) {
+        skuBlockCount[item.sku]++;
+      }
+    });
+  });
+
+  // Build cook list - only items still needed
+  var cookList = SKUS.filter(function(s) {
+    return skuStillNeed[s.sku] > 0;
+  }).map(function(s) {
+    return {sku:s.sku, name:s.name, size:s.size, cat:s.cat,
+      stillNeed:skuStillNeed[s.sku], blocked:skuBlockCount[s.sku],
+      done:prodCount[s.sku].done, needed:prodCount[s.sku].needed};
+  }).sort(function(a,b) {
+    // Sort by orders blocked desc, then still need desc
+    if (b.blocked !== a.blocked) return b.blocked - a.blocked;
+    return b.stillNeed - a.stillNeed;
+  });
+
+  // Ready orders
+  var readyOrders = Object.keys(orders).filter(function(num) {
+    var order = orders[num];
+    if (order.shipped) return false;
+    return order.items.length > 0 && order.items.every(function(item) {
+      var c = prodCount[item.sku];
+      return c && c.done >= c.needed && c.needed > 0;
+    });
+  });
+
+  // Render cook list
+  var cookEl = document.getElementById('cook-next-list');
+  if (cookList.length === 0) {
+    cookEl.innerHTML = '<div class="empty"><div class="empty-sub">All items cooked! Check Ready Orders below.</div></div>';
+  } else {
+    cookEl.innerHTML = cookList.slice(0,20).map(function(item, idx) {
+      var urgency = item.blocked >= 3 ? 'urgent' : item.blocked >= 1 ? 'medium' : 'low';
+      var rank = idx + 1;
+      return '<div class="cook-row '+urgency+'">'
+        + '<div class="cook-badge '+urgency+'"><div class="cook-badge-num">#'+rank+'</div><div class="cook-badge-lbl">'+item.blocked+' orders</div></div>'
+        + '<div class="cook-info"><div class="cook-name">'+item.name+'</div>'
+        + '<div class="cook-meta">'+item.size+' · '+item.sku+' · '+item.cat+'</div></div>'
+        + '<div class="cook-still">'+item.stillNeed+' more needed</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // Render ready orders
+  var readyEl = document.getElementById('ready-orders-list');
+  if (readyOrders.length === 0) {
+    readyEl.innerHTML = '<div class="empty"><div class="empty-sub">No orders fully ready yet — keep cooking!</div></div>';
+  } else {
+    readyEl.innerHTML = readyOrders.map(function(num) {
+      var order = orders[num];
+      var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+      return '<div class="ready-row">'
+        + '<div class="ready-icon">✅</div>'
+        + '<div class="cook-info"><div class="ready-name">Order #'+num+' — '+order.customer+'</div>'
+        + '<div class="ready-meta">'+order.items.length+' items · '+totalItems+' units — ready to pack!</div></div>'
+        + '</div>';
+    }).join('');
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────
