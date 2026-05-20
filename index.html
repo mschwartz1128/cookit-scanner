@@ -1332,6 +1332,13 @@ renderProdHist();
 renderPackHist();
 document.getElementById('prod-input').focus();
 atInit();
+// Refresh order statuses on startup in case app was closed after scanning
+setTimeout(function(){
+  if(Object.keys(orders).length > 0) {
+    atSyncOrders();
+    setTimeout(atUpdateOrderStatuses, 3000);
+  }
+}, 2000);
 </script>
 </body>
 </html>
