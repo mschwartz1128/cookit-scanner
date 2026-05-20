@@ -703,6 +703,22 @@ function norm(str) {
 }
 
 function shopifyNameToSKU(title) {
+  var nFullCheck = norm(title);
+
+  // Strategy 0: items with duplicate names — match on size too
+  // e.g. "Fruit Crisp - Packed 12" -> SID-004 not SID-003
+  var dupCheck = {};
+  SKUS.forEach(function(s){ var k=norm(s.name); dupCheck[k]=(dupCheck[k]||0)+1; });
+  for (var di=0; di<SKUS.length; di++) {
+    var sn = norm(SKUS[di].name);
+    if (dupCheck[sn] > 1) {
+      var ss = norm(SKUS[di].size);
+      var sizeWords = ss.split(' ').filter(function(w){return w.length>1;});
+      var sizeMatch = sizeWords.some(function(w){ return nFullCheck.indexOf(w) !== -1; });
+      if (nFullCheck.indexOf(sn) !== -1 && sizeMatch) return SKUS[di].sku;
+    }
+  }
+
   var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9\s*["""''`]?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
   var n = norm(base);
   var nFull = norm(title);
