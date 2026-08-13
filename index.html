@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v9 - Fruit Crisp fix -->
+<!-- Scanner v10 - Fall 2026 menu -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -158,7 +158,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div class="brand-badge">🍳</div>
     <div>
       <div class="brand-name">Cook It NJ</div>
-      <div class="brand-season">Shavuos 2026 — Kitchen Scanner</div>
+      <div class="brand-season">Fall 2026 — Kitchen Scanner</div>
     </div>
   </div>
   <div class="topbar-right">
@@ -226,13 +226,14 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <div class="scan-row">
         <input type="text" class="scan-input" id="prod-input" placeholder="Scan barcode (e.g. APP-001) …" onkeydown="if(event.key==='Enter')prodScan()">
         <button class="scan-go prod" onclick="prodScan()">Log Item ↵</button>
+        <button class="scan-go" id="undo-btn" onclick="undoLastScan()" style="display:none;background:var(--orange-dim);color:var(--orange);border:1px solid rgba(217,119,6,0.35)">↺ Undo</button>
       </div>
     </div>
     <div class="stat-row">
-      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b">49</div></div>
+      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b" id="s-skus">0</div></div>
       <div class="stat"><div class="stat-lbl">Fully Done</div><div class="stat-val g" id="s-done">0</div></div>
       <div class="stat"><div class="stat-lbl">In Progress</div><div class="stat-val o" id="s-partial">0</div></div>
-      <div class="stat"><div class="stat-lbl">Not Started</div><div class="stat-val" id="s-zero">49</div></div>
+      <div class="stat"><div class="stat-lbl">Not Started</div><div class="stat-val" id="s-zero">0</div></div>
       <div class="stat"><div class="stat-lbl">Total Scans</div><div class="stat-val" id="s-scans">0</div></div>
       <div class="stat export-btns">
         <button class="exp-btn green" onclick="exportProdCSV()">⬇ Export Counts</button>
@@ -295,66 +296,109 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 </main>
 
 <script>
-console.log("Scanner v9 loaded - Fruit Crisp fix active");
+console.log("Scanner v10 loaded - Fall 2026 menu");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
-  {sku:"APP-001",name:"Cabbage Pastrami Eggrolls",size:"Packed 12",cat:"Appetizers"},
-  {sku:"APP-002",name:"Glazed Hassleback Kielbasa",size:"One Kielbasa",cat:"Appetizers"},
-  {sku:"APP-003",name:"Chicken Wontons",size:"Packed 12",cat:"Appetizers"},
-  {sku:"APP-004",name:"Grilled Oyster Steak",size:"10 Slices",cat:"Appetizers"},
-  {sku:"APP-005",name:"Sweet Meatballs",size:"2 lbs",cat:"Appetizers"},
-  {sku:"APP-006",name:"Barbecue Pulled Brisket",size:"1 lb",cat:"Appetizers"},
-  {sku:"SOP-001",name:"Broccoli Zucchini Soup",size:"2 lbs",cat:"Soups"},
-  {sku:"SOP-002",name:"Cream of Chicken Soup",size:"2 lbs",cat:"Soups"},
-  {sku:"SOP-003",name:"Hearty Flanken Soup",size:"2 lbs",cat:"Soups"},
-  {sku:"SOP-004",name:"Smoothie Fruit Soup",size:"2 lbs Chilled",cat:"Soups"},
-  {sku:"SOP-005",name:"Split Pea Vegetable Soup",size:"2 lbs",cat:"Soups"},
-  {sku:"FSH-001",name:"Panko Crusted Salmon",size:"12 Cubes",cat:"Fish"},
-  {sku:"FSH-002",name:"Rainbow Salmon",size:"Side",cat:"Fish"},
-  {sku:"FSH-003",name:"Pecan Crusted Salmon",size:"6 Slices",cat:"Fish"},
-  {sku:"FSH-004",name:"Salmon Wellington",size:"6 Pockets",cat:"Fish"},
-  {sku:"FSH-005",name:"Maple Garlic Salmon",size:"Side",cat:"Fish"},
-  {sku:"ENT-001",name:"Chicken Steak Ready to Bake",size:"Packed 6",cat:"Entrees"},
-  {sku:"ENT-002",name:"Cornflake Chicken Fingers",size:"Half 9x13",cat:"Entrees"},
-  {sku:"ENT-003",name:"Corned Beef Sweet Sauce",size:"9x13",cat:"Entrees"},
-  {sku:"ENT-004",name:"French Roast Sweet",size:"9x13",cat:"Entrees"},
-  {sku:"ENT-005",name:"French Roast Wine",size:"9x13",cat:"Entrees"},
-  {sku:"ENT-006",name:"Beer Braised Riblets",size:"9x13",cat:"Entrees"},
-  {sku:"ENT-007",name:"Fruity Flanken Roast Bone In",size:"9x13",cat:"Entrees"},
-  {sku:"ENT-008",name:"Hot Poppers",size:"Half 9x13",cat:"Entrees"},
-  {sku:"ENT-009",name:"Marinated Herb Chicken",size:"Packed 4",cat:"Entrees"},
-  {sku:"ENT-010",name:"Mini Kishka Capons",size:"Packed 8",cat:"Entrees"},
-  {sku:"ENT-011",name:"Sesame Chicken",size:"Half 9x13",cat:"Entrees"},
-  {sku:"ENT-012",name:"Smokey Barbecue Brisket",size:"Whole",cat:"Entrees"},
-  {sku:"SAL-001",name:"Beef Fry Salad",size:"Full",cat:"Salads"},
-  {sku:"SAL-002",name:"Citrus Summer Salad",size:"Full",cat:"Salads"},
-  {sku:"SAL-003",name:"Classic Grilled Chicken Salad",size:"Full",cat:"Salads"},
-  {sku:"SAL-004",name:"Cobb Salad",size:"Full",cat:"Salads"},
-  {sku:"SAL-005",name:"Loaded Salad",size:"Full",cat:"Salads"},
-  {sku:"SID-001",name:"Butternut Squash Muffins",size:"Mini Packed 12",cat:"Sides"},
-  {sku:"SID-002",name:"Confetti Rice",size:"9in Round",cat:"Sides"},
-  {sku:"SID-003",name:"Fruit Crisp",size:"9in Round",cat:"Sides"},
-  {sku:"SID-004",name:"Fruit Crisp",size:"Packed 12",cat:"Sides"},
-  {sku:"SID-005",name:"Grilled Vegetables",size:"Half 9x13",cat:"Sides"},
-  {sku:"SID-006",name:"Mushroom Leek Tarts",size:"Mini Packed 12",cat:"Sides"},
-  {sku:"SID-007",name:"Potato Puffs",size:"Mini Packed 12",cat:"Sides"},
-  {sku:"SID-008",name:"Pastrami Orzo",size:"9in Round",cat:"Sides"},
-  {sku:"SID-009",name:"Sesame String Beans & Peppers",size:"Half 9x13",cat:"Sides"},
-  {sku:"SID-010",name:"Panko Roasted Cauliflower Bites",size:"Half 9x13",cat:"Sides"},
-  {sku:"DES-001",name:"Chocolate Chip Lotus Cups",size:"Packed 12 Warm",cat:"Desserts"},
-  {sku:"DES-002",name:"Chocolate Souffle",size:"Packed 12 Warm",cat:"Desserts"},
-  {sku:"DES-003",name:"Frozen Blueberry Crumble",size:"9in Round",cat:"Desserts"},
-  {sku:"DES-004",name:"Light Lemon Mousse",size:"2 lbs",cat:"Desserts"},
-  {sku:"DES-005",name:"Plum Galette",size:"Full",cat:"Desserts"},
-  {sku:"DES-006",name:"S'mores Bar",size:"9x13 Warm",cat:"Desserts"},
+  {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
+  {sku:"FAP-002",name:"Cabbage Pastrami Eggrolls",size:"Packed 12",cat:"Appetizers"},
+  {sku:"FAP-003",name:"BBQ Pulled Brisket",size:"1 lb",cat:"Appetizers"},
+  {sku:"FAP-004",name:"Grilled Oyster Steak",size:"10 Slices",cat:"Appetizers"},
+  {sku:"FAP-005",name:"Grilled London Broil",size:"10 Slices",cat:"Appetizers"},
+  {sku:"FAP-006",name:"Hot Honey Drumettes",size:"Half 9x13",cat:"Appetizers"},
+  {sku:"FSO-001",name:"Butternut Squash",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-002",name:"Creamy Carrot Ginger",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-003",name:"Creamy Roasted Cauliflower",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-004",name:"Creamy Zucchini Broccoli",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-005",name:"Creamy Zucchini Potato",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-006",name:"Cream of Chicken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-007",name:"Chicken Barley",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-008",name:"Traditional Chicken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-009",name:"Hearty Flanken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-010",name:"Smoothie Fruit Soup",size:"2 lbs Chilled",cat:"Soups"},
+  {sku:"FSO-011",name:"Kneidlach",size:"Packed 8",cat:"Soups"},
+  {sku:"FFI-001",name:"Panko Crusted Salmon Cubes",size:"Serves 6 / 2pp",cat:"Fish"},
+  {sku:"FFI-002",name:"Pecan Topped Salmon",size:"Serves 6",cat:"Fish"},
+  {sku:"FFI-003",name:"Maple Glazed Salmon",size:"Serves 6",cat:"Fish"},
+  {sku:"FFI-004",name:"Traditional Gefilte Fish",size:"Serves 8",cat:"Fish"},
+  {sku:"FFI-005",name:"Rainbow Side of Salmon",size:"Serves 8-10",cat:"Fish"},
+  {sku:"FFI-006",name:"Salmon Wellington Pockets",size:"Serves 6",cat:"Fish"},
+  {sku:"FEN-001",name:"BBQ Riblets",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-002",name:"Mushroom Rib Steak (Bone In)",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-003",name:"Coffee Rub French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-004",name:"Sweet French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-005",name:"Maple Bourbon Flanken",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-006",name:"Sliced Naval Pastrami",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-007",name:"Sticky Drumsticks",size:"Packed 10",cat:"Entrees"},
+  {sku:"FEN-008",name:"Capons with Kishka Filling",size:"Packed 12 Mini",cat:"Entrees"},
+  {sku:"FEN-009",name:"Marinated Chicken on the Bone",size:"Packed 4",cat:"Entrees"},
+  {sku:"FEN-010",name:"Sweet Chicken on the Bone",size:"Packed 4",cat:"Entrees"},
+  {sku:"FEN-011",name:"Chicken Vegetable Stir Fry",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-012",name:"Breaded Chicken Steaks Ready to Bake",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-013",name:"Grilled Cutlets",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-014",name:"Classic Chicken Fingers",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-015",name:"Sesame Chicken",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-016",name:"Hot Poppers",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-017",name:"BBQ Wings",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-018",name:"Beef & Broccoli",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-019",name:"Roasted Garlic French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-020",name:"Pesto Baby Chicken",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-021",name:"Capons with Broccoli Filling",size:"Packed 12 Mini",cat:"Entrees"},
+  {sku:"FEN-022",name:"Ground Chicken & Spinach Loaf",size:"Serves 8",cat:"Entrees"},
+  {sku:"FSD-001",name:"Garlic Roasted Broccoli & Cauliflower",size:"Half 9x13",cat:"Sides"},
+  {sku:"FSD-002",name:"Grilled Vegetables",size:"Half 9x13",cat:"Sides"},
+  {sku:"FSD-003",name:"Potato Kugel",size:"9x13",cat:"Sides"},
+  {sku:"FSD-004",name:"Honey Garlic Rice & Vegetables",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-005",name:"Deli Roll",size:"Serves 8",cat:"Sides"},
+  {sku:"FSD-006",name:"Mini Butternut Squash Muffins",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-007",name:"Fruit Crisp",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-008",name:"Fruit Crisp",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-009",name:"Apple Crisp",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-010",name:"Apple Crisp",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-011",name:"Broccoli Kugel",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-012",name:"Broccoli Kugel",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-013",name:"Cauliflower Tartlets",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-014",name:"Cabbage & Noodles",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-015",name:"Mini Cherry Bites",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-016",name:"Pastrami Orzo",size:"9\" Round",cat:"Sides"},
+  {sku:"FSA-001",name:"Citrus Summer",size:"Full",cat:"Salads"},
+  {sku:"FSA-002",name:"Crunchy Cabbage",size:"Full",cat:"Salads"},
+  {sku:"FSA-003",name:"Nish Nosh",size:"Full",cat:"Salads"},
+  {sku:"FSA-004",name:"Cobb Salad",size:"Full",cat:"Salads"},
+  {sku:"FSA-005",name:"BBQ Taco",size:"Full",cat:"Salads"},
+  {sku:"FSA-006",name:"London Broil",size:"Full",cat:"Salads"},
+  {sku:"FSA-007",name:"Beef Fry",size:"Full",cat:"Salads"},
+  {sku:"FSA-008",name:"Grilled Chicken",size:"Full",cat:"Salads"},
+  {sku:"FDS-001",name:"Frozen Blueberry Crumble",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-002",name:"S'mores Bars Served Warm",size:"9x13",cat:"Desserts"},
+  {sku:"FDS-003",name:"Peanut Butter Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-004",name:"Lotus Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-005",name:"Light Lemon Mousse",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-006",name:"Chocolate Souffle Cups",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-007",name:"Warm Chocolate Chip Lotus Cups",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-008",name:"Apple Caramel Cobbler",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-009",name:"Loaded Ice Cream",size:"2 lb",cat:"Desserts"},
+  {sku:"FFF-001",name:"Hot Salami Discs",size:"1 lb",cat:"Finger Food"},
+  {sku:"FFF-002",name:"Deli Knishes",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-003",name:"Mini Pastrami Sweet Potato Pockets",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-004",name:"Pulled Meat Pockets",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-005",name:"Breaded Cocktail Hot Dogs",size:"1 lb",cat:"Finger Food"},
+  {sku:"FFF-006",name:"Glazed Hasselback",size:"1 Kielbasa",cat:"Finger Food"},
+  {sku:"FFF-007",name:"Chicken Wontons",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-008",name:"Meat Rugalach",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FDR-001",name:"Citrus Balsamic Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-002",name:"Honey Mustard Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-003",name:"Creamy Mayo",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-004",name:"Strawberry Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-005",name:"Dill Vinaigrette",size:"8 oz",cat:"Dressings"},
 ];
+console.log("Fall 2026 menu: " + SKUS.length + " SKUs loaded");
 
 const SKU_MAP = {};
 const prodCount = {};
 SKUS.forEach(function(s){SKU_MAP[s.sku]=s; prodCount[s.sku]={needed:0,done:0};});
 
 // ── STORAGE KEY ──────────────────────────────────────────
-const STORE_KEY = 'cookit_session_v1';
+const STORE_KEY = 'cookit_fall2026_v1';
 
 // ── AIRTABLE CONFIG ───────────────────────────────────────
 const AT_TOKEN   = 'patqL0wv6QWoP5tNj.9524a264c01a754ce132f396fe96659e749072eb19bc903d4f2ec9135c425c19';
@@ -373,7 +417,7 @@ var atRecordIds = {};
 
 // Initialize Airtable table with all SKUs on first load
 function atInit() {
-  fetch(AT_URL + '?maxRecords=200', {headers:AT_HEADERS})
+  fetch(AT_URL + '?maxRecords=500', {headers:AT_HEADERS})
     .then(function(r){return r.json();})
     .then(function(data) {
       if (!data.records) return;
@@ -383,6 +427,27 @@ function atInit() {
           atRecordIds[rec.fields.SKU] = rec.id;
         }
       });
+
+      // Purge records for SKUs no longer on the menu (old season leftovers)
+      var validSkus = {};
+      SKUS.forEach(function(s){ validSkus[s.sku] = true; });
+      var stale = data.records.filter(function(rec){
+        return rec.fields && rec.fields.SKU && !validSkus[rec.fields.SKU];
+      }).map(function(rec){ return rec.id; });
+      if (stale.length > 0) {
+        for (var si = 0; si < stale.length; si += 10) {
+          var sbatch = stale.slice(si, si + 10);
+          var squery = sbatch.map(function(id){ return 'records[]=' + id; }).join('&');
+          fetch(AT_URL + '?' + squery, {method:'DELETE', headers:AT_HEADERS})
+            .catch(function(e){ console.warn('AT stale purge failed:', e); });
+        }
+        stale.forEach(function(id){
+          Object.keys(atRecordIds).forEach(function(k){
+            if (atRecordIds[k] === id) delete atRecordIds[k];
+          });
+        });
+        console.log('Purged ' + stale.length + ' stale SKU records from Airtable');
+      }
 
       // Find SKUs not yet in Airtable and create them
       var missing = SKUS.filter(function(s){ return !atRecordIds[s.sku]; });
@@ -413,6 +478,11 @@ function atInit() {
 
       chain.then(function(){
         updateAtStatus('✅ Airtable connected — ' + SKUS.length + ' items ready', 'var(--green)');
+        // Sync order statuses now that record IDs are loaded
+        if(Object.keys(orders).length > 0) {
+          atSyncOrders();
+          setTimeout(atUpdateOrderStatuses, 2000);
+        }
         // Push current counts if any
         atPushAllCounts();
       }).catch(function(e){
@@ -935,6 +1005,31 @@ function showFlash(msg,type) {
 }
 
 // ── PRODUCTION ────────────────────────────────────────────
+// ── UNDO LAST PRODUCTION SCAN ─────────────────────────────
+var lastProdScan = null;
+function undoLastScan() {
+  if (!lastProdScan) { showFlash('Nothing to undo','warn'); return; }
+  var sku = lastProdScan;
+  var item = SKU_MAP[sku];
+  if (!prodCount[sku] || prodCount[sku].done <= 0) {
+    showFlash('Nothing to undo for ' + sku,'warn');
+    lastProdScan = null;
+    document.getElementById('undo-btn').style.display='none';
+    return;
+  }
+  prodCount[sku].done--;
+  scanCounts[sku] = Math.max(0,(scanCounts[sku]||1) - 1);
+  if (prodHistory.length && prodHistory[0].sku === sku) prodHistory.shift();
+  lastProdScan = null;
+  document.getElementById('undo-btn').style.display='none';
+  saveSession();
+  atPushScan(sku);
+  setTimeout(atUpdateOrderStatuses, 1500);
+  showFlash('Removed 1 x ' + item.name + ' — now ' + prodCount[sku].done + ' made','warn');
+  renderProdGrid(); updateProdStats(); renderProdHist();
+  if (mode === 'cook') renderCookNext();
+}
+
 function prodScan() {
   var inp=document.getElementById('prod-input');
   var sku=inp.value.trim().toUpperCase();
@@ -945,6 +1040,8 @@ function prodScan() {
   prodCount[sku].done++;
   scanCounts[sku]=(scanCounts[sku]||0)+1;
   prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
+  lastProdScan = sku;
+  var ub=document.getElementById('undo-btn'); if(ub) ub.style.display='block';
   saveSession();
   atPushScan(sku);
   setTimeout(atUpdateOrderStatuses, 2000);
@@ -984,6 +1081,7 @@ function updateProdStats() {
   document.getElementById('s-partial').textContent=partial;
   document.getElementById('s-zero').textContent=zero;
   document.getElementById('s-scans').textContent=totalScans;
+  var se=document.getElementById('s-skus'); if(se) se.textContent=SKUS.length;
 }
 
 function renderProdHist() {
@@ -1332,13 +1430,7 @@ renderProdHist();
 renderPackHist();
 document.getElementById('prod-input').focus();
 atInit();
-// Refresh order statuses on startup in case app was closed after scanning
-setTimeout(function(){
-  if(Object.keys(orders).length > 0) {
-    atSyncOrders();
-    setTimeout(atUpdateOrderStatuses, 3000);
-  }
-}, 2000);
+// Order status refresh handled inside atInit after record IDs are loaded
 </script>
 </body>
 </html>
