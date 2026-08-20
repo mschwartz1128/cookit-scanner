@@ -1,159 +1,1461 @@
-# myMatSH — Voice Narration Script
-**For Professional Voice Over | Screen Recording Walkthrough**
-**Estimated Runtime: ~6–7 minutes at conversational pace**
+<!DOCTYPE html>
+<!-- Scanner v11 - updated menu + specials -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cook It NJ — Kitchen Scanner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+:root {
+  --bg:#f4f6fa; --surface:#fff; --surface2:#f0f3f9;
+  --border:#e2e7f0; --border2:#d0d7e6;
+  --green:#18a85a; --green-dim:rgba(24,168,90,0.10);
+  --blue:#2563eb; --blue-dim:rgba(37,99,235,0.09);
+  --orange:#d97706; --orange-dim:rgba(217,119,6,0.10);
+  --red:#dc2626; --red-dim:rgba(220,38,38,0.08);
+  --text:#1a2036; --muted:#6b7280; --dim:#9ca3b0;
+  --r:10px; --r-sm:7px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:#1a2036;border-bottom:1px solid #0f1525;position:sticky;top:0;z-index:200;flex-wrap:wrap;gap:10px;}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-badge{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--blue));display:flex;align-items:center;justify-content:center;font-size:19px;}
+.brand-name{font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+.brand-season{font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px;}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.orders-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,0.7);}
+.orders-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.mode-pills{display:flex;gap:4px;background:rgba(0,0,0,0.25);border-radius:9px;padding:3px;border:1px solid rgba(255,255,255,0.1);}
+.pill{padding:6px 16px;border-radius:6px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s;color:rgba(255,255,255,0.55);background:transparent;}
+.pill.p-active{background:var(--green);color:#0a2016;}
+.pill.k-active{background:var(--blue);color:#0a1628;}
+.clear-btn{padding:6px 14px;border-radius:6px;border:1px solid rgba(220,38,38,0.4);background:rgba(220,38,38,0.15);color:#fca5a5;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s;}
+.clear-btn:hover{background:rgba(220,38,38,0.3);}
+.flash{margin:14px 28px 0;padding:11px 16px;border-radius:var(--r-sm);font-weight:600;font-size:13px;display:none;animation:slideDown 0.15s ease;}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.flash.ok{background:var(--green-dim);color:var(--green);border:1px solid rgba(24,168,90,0.25);display:block;}
+.flash.err{background:var(--red-dim);color:var(--red);border:1px solid rgba(220,38,38,0.25);display:block;}
+.flash.warn{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(217,119,6,0.25);display:block;}
+main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
+.session-bar{display:flex;align-items:center;gap:12px;background:#f0fff8;border:1px solid rgba(24,168,90,0.25);border-radius:var(--r);padding:12px 18px;margin-bottom:16px;font-size:12px;display:none;}
+.session-bar.visible{display:flex;}
+.session-bar-icon{font-size:18px;}
+.session-bar-text{flex:1;color:var(--green);font-weight:600;}
+.session-bar-sub{color:var(--muted);font-weight:400;}
+.csv-bar{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-bottom:20px;}
+.csv-icon{font-size:20px;}
+.csv-text{flex:1;}
+.csv-title{font-weight:600;font-size:13px;}
+.csv-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.csv-btn{padding:8px 18px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.15s;}
+.csv-btn:hover{border-color:var(--blue);color:var(--blue);}
+.csv-drop-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:all 0.2s;display:none;margin-bottom:20px;}
+.csv-drop-zone.visible{display:block;}
+.csv-drop-zone.drag-over{border-color:var(--blue);background:var(--blue-dim);}
+.csv-drop-zone input{display:none;}
+.drop-icon{font-size:32px;margin-bottom:10px;}
+.drop-title{font-weight:700;font-size:15px;margin-bottom:4px;}
+.drop-sub{font-size:12px;color:var(--muted);}
+.drop-how{margin-top:18px;padding:14px 18px;background:var(--surface2);border-radius:var(--r-sm);text-align:left;font-size:12px;line-height:1.8;color:var(--muted);}
+.drop-how strong{color:var(--text);}
+.unmatched-box{background:#fff8f0;border:1px solid rgba(217,119,6,0.3);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;display:none;}
+.unmatched-box.visible{display:block;}
+.unmatched-title{font-weight:700;font-size:13px;color:var(--orange);margin-bottom:10px;}
+.unmatched-item{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;}
+.unmatched-name{font-size:12px;font-weight:600;flex:1;min-width:200px;}
+.unmatched-select{padding:5px 10px;border-radius:var(--r-sm);border:1px solid var(--border2);font-family:'DM Sans',sans-serif;font-size:12px;background:white;cursor:pointer;flex:1;}
+.unmatched-btn{padding:7px 16px;border-radius:var(--r-sm);border:none;background:var(--orange);color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;margin-top:8px;}
+.scan-bar{background:var(--surface);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;border:1px solid var(--border);}
+.scan-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
+.scan-row{display:flex;gap:10px;}
+.scan-input{flex:1;background:var(--bg);border:1.5px solid var(--border2);border-radius:var(--r-sm);padding:11px 15px;font-family:'DM Mono',monospace;font-size:14px;color:var(--text);outline:none;transition:border-color 0.15s;}
+.scan-input:focus{border-color:var(--green);}
+.scan-input.pack:focus{border-color:var(--blue);}
+.scan-go{padding:11px 22px;border-radius:var(--r-sm);border:none;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.15s;}
+.scan-go.prod{background:var(--green);color:#0a2016;}
+.scan-go.pack{background:var(--blue);color:#0a1628;}
+.scan-go:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.stat-row{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+.stat{flex:1;min-width:100px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 16px;}
+.stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;}
+.stat-val{font-family:'DM Mono',monospace;font-size:26px;font-weight:500;margin-top:3px;}
+.g{color:var(--green);}.b{color:var(--blue);}.o{color:var(--orange);}
+.export-btns{display:flex;flex-direction:column;gap:6px;justify-content:center;min-width:150px;}
+.exp-btn{padding:9px 14px;border-radius:var(--r-sm);border:none;font-family:'DM Sans',sans-serif;font-weight:700;font-size:12px;cursor:pointer;transition:all 0.15s;}
+.exp-btn.green{background:var(--green);color:#0a2016;}
+.exp-btn.blue{background:var(--blue);color:#0a1628;}
+.exp-btn:hover{filter:brightness(1.08);}
+.sec{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;margin:20px 0 10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--border);}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:4px;}
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 14px;transition:border-color 0.2s;}
+.pcard.is-done{border-color:rgba(24,168,90,0.4);background:rgba(24,168,90,0.03);}
+.pcard.is-partial{border-color:rgba(217,119,6,0.35);}
+.pcard-sku{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-bottom:3px;}
+.pcard-name{font-weight:600;font-size:12px;line-height:1.35;margin-bottom:2px;}
+.pcard-size{font-size:10px;color:var(--muted);margin-bottom:9px;}
+.pcard-counts{display:flex;gap:6px;}
+.cbox{flex:1;background:var(--bg);border-radius:5px;padding:5px 8px;text-align:center;}
+.cbox-lbl{font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:var(--dim);}
+.cbox-num{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;margin-top:1px;}
+.cbox-num.g{color:var(--green);}.cbox-num.o{color:var(--orange);}.cbox-num.d{color:var(--dim);}
+.order-load-bar{display:flex;gap:10px;margin-bottom:12px;}
+.order-hdr{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:14px;display:none;}
+.order-hdr.vis{display:block;}
+.order-meta{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;}
+.ometa-lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;}
+.ometa-val{font-size:15px;font-weight:700;margin-top:2px;}
+.prog-track{background:var(--bg);border-radius:99px;height:7px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--green));transition:width 0.4s ease;width:0%;}
+.prog-text{font-size:11px;color:var(--muted);margin-top:5px;}
+.pack-list{display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
+.pack-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 15px;transition:border-color 0.2s;}
+.pack-row.packed{border-color:rgba(24,168,90,0.4);background:rgba(24,168,90,0.03);}
+.pack-row.partial{border-color:rgba(217,119,6,0.35);}
+.pack-row.missing{border-color:rgba(220,38,38,0.25);}
+.pack-dot{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--border2);}
+.pack-row.packed .pack-dot{border-color:var(--green);background:var(--green-dim);}
+.pack-row.partial .pack-dot{border-color:var(--orange);background:var(--orange-dim);}
+.pack-row.missing .pack-dot{border-color:var(--red);background:var(--red-dim);}
+.pack-info{flex:1;min-width:0;}
+.pack-name{font-weight:600;font-size:13px;}
+.pack-meta{font-size:10px;color:var(--muted);margin-top:1px;}
+.pack-chip{font-family:'DM Mono',monospace;font-size:12px;font-weight:500;padding:3px 11px;border-radius:20px;background:var(--bg);border:1px solid var(--border2);flex-shrink:0;}
+.pack-chip.done{background:var(--green-dim);color:var(--green);border-color:rgba(24,168,90,0.3);}
+.hist-list{display:flex;flex-direction:column;gap:5px;}
+.hist-row{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);padding:6px 10px;border-radius:6px;background:var(--surface);border:1px solid var(--border);}
+.hist-time{font-family:'DM Mono',monospace;font-size:10px;color:var(--dim);min-width:58px;}
+.hist-sku{font-family:'DM Mono',monospace;min-width:74px;}
+.hist-sku.g{color:var(--green);}.hist-sku.b{color:var(--blue);}
+.panel{display:none;}.panel.on{display:block;}
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-sub{font-size:12px;margin-top:5px;}
+.cook-row{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 16px;margin-bottom:7px;}
+.cook-row.urgent{border-color:rgba(220,38,38,0.35);background:rgba(220,38,38,0.03);}
+.cook-row.medium{border-color:rgba(217,119,6,0.35);}
+.cook-badge{min-width:44px;height:44px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-weight:700;}
+.cook-badge.urgent{background:var(--red-dim);color:var(--red);}
+.cook-badge.medium{background:var(--orange-dim);color:var(--orange);}
+.cook-badge.low{background:var(--blue-dim);color:var(--blue);}
+.cook-badge-num{font-size:18px;line-height:1;}
+.cook-badge-lbl{font-size:8px;text-transform:uppercase;letter-spacing:0.5px;margin-top:1px;}
+.cook-info{flex:1;}
+.cook-name{font-weight:600;font-size:13px;}
+.cook-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.cook-still{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--red);text-align:right;}
+.ready-row{display:flex;align-items:center;gap:12px;background:#f0fff8;border:1px solid rgba(24,168,90,0.3);border-radius:var(--r-sm);padding:11px 15px;margin-bottom:7px;}
+.ready-name{font-weight:700;font-size:13px;color:var(--green);}
+.ready-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.ready-icon{font-size:20px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-badge">🍳</div>
+    <div>
+      <div class="brand-name">Cook It NJ</div>
+      <div class="brand-season">Fall 2026 — Kitchen Scanner</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="orders-badge">
+      <div class="orders-dot"></div>
+      <span id="orders-loaded-txt">No orders loaded</span>
+    </div>
+    <div class="mode-pills">
+      <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
+      <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
+      <button class="pill" id="pill-cook" onclick="setMode('cook')">🎯 Cook Next</button>
+    </div>
+    <button class="clear-btn" onclick="clearEverything()">🗑 Clear All</button>
+  </div>
+</div>
 
----
+<div class="flash" id="flash"></div>
 
-## PRODUCTION NOTES FOR VOICE TALENT
-- **Tone:** Warm, professional, confident — respectful of the sacred nature of the work, but modern and approachable. Think "trusted colleague," not "infomercial."
-- **Pace:** Measured and clear. This is a feature walkthrough; viewers need time to follow along visually.
-- **Pronunciation Guide:**
-  - **myMatSH** — "my-MATCH" (the SH is silent in spelling but pronounced as "match")
-  - **Shidduch / Shidduchim** — "shih-DOOKH" / "shih-doo-KHEEM" (gentle guttural KH)
-  - **Shadchan / Shadchanim** — "SHAHD-khun" / "shahd-khuh-NEEM"
-  - **Hashkafa** — "hahsh-KAH-fah"
-  - **Yeshiva** — "yeh-SHEE-vah"
-  - **Eretz Yisroel** — "EH-retz yis-ROY-el"
-- **Pauses:** Brief pause at every [PAUSE] marker. Longer pause at section breaks.
+<main>
+  <!-- SESSION RESTORED BAR -->
+  <div class="session-bar" id="session-bar">
+    <div class="session-bar-icon">💾</div>
+    <div class="session-bar-text">Session restored! <span class="session-bar-sub" id="session-bar-sub"></span></div>
+  </div>
 
----
+  <div class="csv-bar">
+    <div class="csv-icon">📂</div>
+    <div class="csv-text">
+      <div class="csv-title">Load Orders from Shopify</div>
+      <div class="csv-sub" id="csv-status">No orders loaded — export your orders CSV from Shopify and drop it here</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <button class="csv-btn" onclick="toggleDropZone()">↑ Load CSV</button>
+      <span id="at-status" style="font-size:11px;color:var(--muted)">Connecting to Airtable...</span>
+    </div>
+  </div>
 
-## SCENE 1 — OPENING / LANDING PAGE
+  <div class="csv-drop-zone" id="drop-zone"
+    ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)"
+    onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" accept=".csv" onchange="fileChosen(event)">
+    <div class="drop-icon">⬇️</div>
+    <div class="drop-title">Drop your Shopify orders CSV here</div>
+    <div class="drop-sub">or click anywhere in this box to browse for the file</div>
+    <div class="drop-how">
+      <strong>How to export from Shopify:</strong><br>
+      1. Go to Shopify Admin → <strong>Orders</strong><br>
+      2. Click <strong>Export</strong> (top right)<br>
+      3. Choose <strong>Current page</strong> → Export as <strong>CSV for Excel</strong><br>
+      4. Save the file, then drop it here or click to browse
+    </div>
+  </div>
 
-> Welcome to **myMatSH** — a modern platform built to streamline the sacred work of making shidduchim. [PAUSE]
->
-> Designed specifically for the Orthodox Jewish community, myMatSH gives shadchanim the tools they need to connect, collaborate, and bring couples together — all in one secure, professional environment.
->
-> From the landing page, users can log in, sign up, or access the dedicated organization portal. Prospective shadchanim can also apply for an account through a simple vetting process.
+  <!-- UNMATCHED ITEMS -->
+  <div class="unmatched-box" id="unmatched-box">
+    <div class="unmatched-title">⚠️ These items could not be matched automatically — please assign them:</div>
+    <div id="unmatched-list"></div>
+    <button class="unmatched-btn" onclick="applyManualMatches()">✅ Apply Matches</button>
+  </div>
 
----
+  <!-- PRODUCTION PANEL -->
+  <div class="panel on" id="panel-prod">
+    <div class="scan-bar">
+      <div class="scan-label">Production Mode — Scan item as you finish making it</div>
+      <div class="scan-row">
+        <input type="text" class="scan-input" id="prod-input" placeholder="Scan barcode (e.g. APP-001) …" onkeydown="if(event.key==='Enter')prodScan()">
+        <button class="scan-go prod" onclick="prodScan()">Log Item ↵</button>
+        <button class="scan-go" id="undo-btn" onclick="undoLastScan()" style="display:none;background:var(--orange-dim);color:var(--orange);border:1px solid rgba(217,119,6,0.35)">↺ Undo</button>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-lbl">SKUs</div><div class="stat-val b" id="s-skus">0</div></div>
+      <div class="stat"><div class="stat-lbl">Fully Done</div><div class="stat-val g" id="s-done">0</div></div>
+      <div class="stat"><div class="stat-lbl">In Progress</div><div class="stat-val o" id="s-partial">0</div></div>
+      <div class="stat"><div class="stat-lbl">Not Started</div><div class="stat-val" id="s-zero">0</div></div>
+      <div class="stat"><div class="stat-lbl">Total Scans</div><div class="stat-val" id="s-scans">0</div></div>
+      <div class="stat export-btns">
+        <button class="exp-btn green" onclick="exportProdCSV()">⬇ Export Counts</button>
+        <button class="exp-btn blue" onclick="exportOrdersCSV()">⬇ Export Pack Status</button>
+      </div>
+    </div>
+    <div id="prod-cats"></div>
+    <div class="sec">Recent Scans</div>
+    <div class="hist-list" id="prod-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
+  </div>
 
-## SCENE 2 — ABOUT & MISSION
+  <!-- PACK PANEL -->
+  <div class="panel" id="panel-pack">
+    <div class="scan-bar">
+      <div class="scan-label">Step 1 — Enter order number to load it</div>
+      <div class="order-load-bar">
+        <input type="text" class="scan-input pack" id="order-input" placeholder="Order number (e.g. 54443)" onkeydown="if(event.key==='Enter')loadOrder()">
+        <button class="scan-go pack" onclick="loadOrder()">Load Order ↵</button>
+      </div>
+    </div>
+    <div class="order-hdr" id="order-hdr">
+      <div class="order-meta">
+        <div><div class="ometa-lbl">Order</div><div class="ometa-val" id="h-order">—</div></div>
+        <div><div class="ometa-lbl">Customer</div><div class="ometa-val" id="h-cust">—</div></div>
+        <div><div class="ometa-lbl">Line Items</div><div class="ometa-val" id="h-items">—</div></div>
+        <div><div class="ometa-lbl">Status</div><div class="ometa-val" id="h-status">—</div></div>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+      <div class="prog-text" id="prog-text">0 of 0 items packed</div>
+      <div id="ship-btn-wrap" style="display:none;margin-top:12px;">
+        <button onclick="markShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:none;background:var(--green);color:#0a2016;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">✅ Mark as Shipped</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px;">Order is fully packed — click to mark shipped in Airtable</span>
+      </div>
+    </div>
+    <div id="pack-scan-wrap" style="display:none">
+      <div class="scan-bar" style="border-color:rgba(37,99,235,0.35);background:#f0f5ff">
+        <div class="scan-label">Step 2 — Scan each item as you place it in the box</div>
+        <div class="scan-row">
+          <input type="text" class="scan-input pack" id="pack-input" placeholder="Scan item barcode …" onkeydown="if(event.key==='Enter')packScan()">
+          <button class="scan-go pack" onclick="packScan()">Scan Item ↵</button>
+        </div>
+      </div>
+      <div class="pack-list" id="pack-list"></div>
+    </div>
+    <div class="empty" id="pack-empty"><div class="empty-sub">Enter an order number above to start packing</div></div>
+    <div class="sec">Pack History</div>
+    <div class="hist-list" id="pack-hist"><div class="empty"><div class="empty-sub">No scans yet</div></div></div>
+  </div>
 
-> Our **About** and **Mission** pages introduce the four core values behind the platform: increased visibility, a single unified profile for every single, efficient matching, and secure collaboration between shadchanim. [PAUSE]
->
-> myMatSH was built on a simple idea — that broader networks, smarter search, and faster, more private connections lead to more successful shidduchim.
+  <!-- COOK NEXT PANEL -->
+  <div class="panel" id="panel-cook">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Cook Next — Priority List</div>
+      <div style="font-size:12px;color:var(--muted);">Items sorted by how many orders they are blocking. Cook the top items first to get the most orders ready.</div>
+    </div>
+    <div id="cook-next-list"></div>
+    <div class="sec">Orders Ready to Pack</div>
+    <div id="ready-orders-list"><div class="empty"><div class="empty-sub">No orders ready yet</div></div></div>
+  </div>
+</main>
 
----
+<script>
+console.log("Scanner v11 loaded - updated Fall 2026 menu + specials");
+// ── MASTER SKU LIST ──────────────────────────────────────
+const SKUS = [
+  {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
+  {sku:"FAP-002",name:"Cabbage Pastrami Eggrolls",size:"Packed 12",cat:"Appetizers"},
+  {sku:"FAP-003",name:"BBQ Pulled Brisket",size:"1 lb",cat:"Appetizers"},
+  {sku:"FAP-004",name:"Grilled Oyster Steak",size:"10 Slices",cat:"Appetizers"},
+  {sku:"FAP-005",name:"Grilled London Broil",size:"10 Slices",cat:"Appetizers"},
+  {sku:"FAP-006",name:"Hot Honey Drumettes",size:"Half 9x13",cat:"Appetizers"},
+  {sku:"FSO-001",name:"Butternut Squash",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-002",name:"Creamy Carrot Ginger",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-003",name:"Creamy Roasted Cauliflower",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-004",name:"Creamy Zucchini Broccoli",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-005",name:"Creamy Zucchini Potato",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-006",name:"Cream of Chicken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-007",name:"Chicken Barley",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-008",name:"Traditional Chicken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-009",name:"Hearty Flanken",size:"2 lbs",cat:"Soups"},
+  {sku:"FSO-010",name:"Smoothie Fruit Soup",size:"2 lbs Chilled",cat:"Soups"},
+  {sku:"FSO-011",name:"Kneidlach",size:"Packed 8",cat:"Soups"},
+  {sku:"FFI-001",name:"Panko Crusted Salmon Cubes",size:"Serves 6 / 2pp",cat:"Fish"},
+  {sku:"FFI-002",name:"Pecan Topped Salmon",size:"Serves 6",cat:"Fish"},
+  {sku:"FFI-003",name:"Maple Glazed Salmon",size:"Serves 6",cat:"Fish"},
+  {sku:"FFI-004",name:"Traditional Gefilte Fish",size:"Serves 8",cat:"Fish"},
+  {sku:"FFI-005",name:"Rainbow Side of Salmon",size:"Serves 8-10",cat:"Fish"},
+  {sku:"FFI-006",name:"Salmon Wellington Pockets",size:"Serves 6",cat:"Fish"},
+  {sku:"FEN-001",name:"BBQ Riblets",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-002",name:"Mushroom Rib Steak (Bone In)",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-003",name:"Coffee Rub French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-004",name:"Sweet French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-005",name:"Maple Bourbon Flanken",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-006",name:"Sliced Naval Pastrami",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-007",name:"Sticky Drumsticks",size:"Packed 10",cat:"Entrees"},
+  {sku:"FEN-008",name:"Capons with Kishka Filling",size:"Packed 12 Mini",cat:"Entrees"},
+  {sku:"FEN-009",name:"Marinated Chicken on the Bone",size:"Packed 4",cat:"Entrees"},
+  {sku:"FEN-010",name:"Sweet Chicken on the Bone",size:"Packed 4",cat:"Entrees"},
+  {sku:"FEN-011",name:"Chicken Vegetable Stir Fry",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-012",name:"Breaded Chicken Steaks Ready to Bake",size:"Packed 6",cat:"Entrees"},
+  {sku:"FEN-013",name:"Grilled Cutlets",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-014",name:"Classic Chicken Fingers",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-015",name:"Sesame Chicken",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-016",name:"Hot Poppers",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-017",name:"BBQ Wings",size:"Half 9x13",cat:"Entrees"},
+  {sku:"FEN-018",name:"Beef & Broccoli",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-019",name:"Roasted Garlic French Roast",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-020",name:"Pesto Baby Chicken",size:"9x13",cat:"Entrees"},
+  {sku:"FEN-021",name:"Capons with Broccoli Filling",size:"Packed 12 Mini",cat:"Entrees"},
+  {sku:"FEN-022",name:"Ground Chicken & Spinach Loaf",size:"Serves 8",cat:"Entrees"},
+  {sku:"FSD-001",name:"Garlic Roasted Broccoli & Cauliflower",size:"Half 9x13",cat:"Sides"},
+  {sku:"FSD-002",name:"Grilled Vegetables",size:"Half 9x13",cat:"Sides"},
+  {sku:"FSD-003",name:"Potato Kugel",size:"9x13",cat:"Sides"},
+  {sku:"FSD-004",name:"Honey Garlic Rice & Vegetables",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-005",name:"Deli Roll",size:"Serves 8",cat:"Sides"},
+  {sku:"FSD-006",name:"Mini Butternut Squash Muffins",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-007",name:"Fruit Crisp",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-008",name:"Fruit Crisp",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-009",name:"Apple Crisp",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-010",name:"Apple Crisp",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-011",name:"Broccoli Kugel",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-012",name:"Broccoli Kugel",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-013",name:"Cauliflower Tartlets",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-014",name:"Cabbage & Noodles",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-015",name:"Mini Cherry Bites",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-016",name:"Pastrami Orzo",size:"9\" Round",cat:"Sides"},
+  {sku:"FSD-017",name:"Mini Potato Puffs",size:"Packed 12",cat:"Sides"},
+  {sku:"FSD-018",name:"Sesame String Beans & Peppers",size:"Half 9x13",cat:"Sides"},
+  {sku:"FSA-001",name:"Citrus Summer",size:"Full",cat:"Salads"},
+  {sku:"FSA-002",name:"Crunchy Cabbage",size:"Full",cat:"Salads"},
+  {sku:"FSA-003",name:"Nish Nosh",size:"Full",cat:"Salads"},
+  {sku:"FSA-004",name:"Cobb Salad",size:"Full",cat:"Salads"},
+  {sku:"FSA-005",name:"BBQ Taco",size:"Full",cat:"Salads"},
+  {sku:"FSA-006",name:"London Broil",size:"Full",cat:"Salads"},
+  {sku:"FSA-007",name:"Beef Fry",size:"Full",cat:"Salads"},
+  {sku:"FSA-008",name:"Grilled Chicken",size:"Full",cat:"Salads"},
+  {sku:"FDS-001",name:"Frozen Blueberry Crumble",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-002",name:"S'mores Bars Served Warm",size:"9x13",cat:"Desserts"},
+  {sku:"FDS-003",name:"Peanut Butter Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-004",name:"Lotus Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-005",name:"Light Lemon Mousse",size:"9\" Round",cat:"Desserts"},
+  {sku:"FDS-006",name:"Chocolate Souffle Cups",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-007",name:"Warm Chocolate Chip Lotus Cups",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-010",name:"Warm Apple Puffs",size:"Packed 12",cat:"Desserts"},
+  {sku:"FDS-009",name:"Loaded Ice Cream",size:"2 lb",cat:"Desserts"},
+  {sku:"FFF-001",name:"Hot Salami Discs",size:"1 lb",cat:"Finger Food"},
+  {sku:"FFF-002",name:"Deli Knishes",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-003",name:"Mini Pastrami Sweet Potato Pockets",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-004",name:"Pulled Meat Pockets",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-005",name:"Breaded Cocktail Hot Dogs",size:"1 lb",cat:"Finger Food"},
+  {sku:"FFF-006",name:"Glazed Hasselback",size:"1 Kielbasa",cat:"Finger Food"},
+  {sku:"FFF-007",name:"Chicken Wontons",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FFF-008",name:"Meat Rugalach",size:"Packed 12",cat:"Finger Food"},
+  {sku:"FDR-001",name:"Citrus Balsamic Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-002",name:"Honey Mustard Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-003",name:"Creamy Mayo",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-004",name:"Strawberry Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FDR-005",name:"Dill Vinaigrette",size:"8 oz",cat:"Dressings"},
+  {sku:"FSP-001",name:"Confetti Rice",size:"9\" Round",cat:"Specials"},
+  {sku:"FSP-002",name:"Silan Glazed Mini Carrots",size:"Packed 12",cat:"Specials"},
+  {sku:"FSP-003",name:"Mini Cabbage Muffins",size:"Packed 12",cat:"Specials"},
+  {sku:"FSP-004",name:"Strawberry Shortcake",size:"9\" Round",cat:"Specials"},
+  {sku:"FSP-005",name:"Challah",size:"Each",cat:"Specials"},
+  {sku:"FSP-006",name:"Cholent",size:"9x13",cat:"Specials"},
+];
+console.log("Fall 2026: " + SKUS.length + " SKUs loaded (menu + specials)");
 
-## SCENE 3 — THE DASHBOARD
+const SKU_MAP = {};
+const prodCount = {};
+SKUS.forEach(function(s){SKU_MAP[s.sku]=s; prodCount[s.sku]={needed:0,done:0};});
 
-> Once logged in, the shadchan lands on a personalized dashboard — the central hub of the platform. [PAUSE]
->
-> Four live summary cards give an at-a-glance view of activity: **My Singles**, **Active Suggestions**, **Tasks Due**, and **Unread Messages**.
->
-> A quick-action banner walks users through the three-step workflow at the heart of myMatSH: add singles, create suggestions, and track progress. [PAUSE]
->
-> Below, recent singles and upcoming tasks are surfaced for instant access — so nothing falls through the cracks.
+// ── STORAGE KEY ──────────────────────────────────────────
+const STORE_KEY = 'cookit_fall2026_v1';
 
----
+// ── AIRTABLE CONFIG ───────────────────────────────────────
+const AT_TOKEN   = 'patqL0wv6QWoP5tNj.9524a264c01a754ce132f396fe96659e749072eb19bc903d4f2ec9135c425c19';
+const AT_BASE    = 'app8Y8d551EjxrDpD';
+const AT_TABLE   = 'tblY0pDg1tLy64AzA';
+const AT_ORDERS_TABLE = 'tblAOjeSkgCtoIS3B';
+const AT_ORDERS_URL = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_ORDERS_TABLE;
 
-## SCENE 4 — SINGLES MANAGEMENT
+// Map orderNum -> Airtable record ID
+var atOrderRecordIds = {};
+const AT_URL     = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_TABLE;
+const AT_HEADERS = {'Authorization':'Bearer '+AT_TOKEN,'Content-Type':'application/json'};
 
-> The **Singles** section is where the real work happens. [PAUSE]
->
-> Shadchanim can view their own singles, browse all singles on the platform, or focus on those who are currently unrepresented. Powerful filters let users search by gender, status, hashkafa, age range, height, private labels, and more.
->
-> Adding a new single is remarkably fast. With our **AI-powered resume upload**, a shadchan can simply upload a PDF — or even snap a photo of a printed resume — and Claude AI will automatically fill in every relevant field. [PAUSE] Built-in duplicate detection ensures the same single is never added twice.
->
-> For those who prefer a full profile, a seven-step guided wizard captures everything: basic information, contact details, physical description, education, family background, and a complete personal profile. [PAUSE]
->
-> Need to move quickly? The **Quick Add** form captures just the essentials — full details can always be completed later.
+// Map SKU -> Airtable record ID (populated on first sync)
+var atRecordIds = {};
 
----
+// Initialize Airtable table with all SKUs on first load
+function atInit() {
+  fetch(AT_URL + '?maxRecords=500', {headers:AT_HEADERS})
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      if (!data.records) return;
+      // Build SKU -> record ID map from existing records
+      data.records.forEach(function(rec) {
+        if (rec.fields && rec.fields.SKU) {
+          atRecordIds[rec.fields.SKU] = rec.id;
+        }
+      });
 
-## SCENE 5 — THE SINGLE PROFILE
+      // Purge records for SKUs no longer on the menu (old season leftovers)
+      var validSkus = {};
+      SKUS.forEach(function(s){ validSkus[s.sku] = true; });
+      var stale = data.records.filter(function(rec){
+        return rec.fields && rec.fields.SKU && !validSkus[rec.fields.SKU];
+      }).map(function(rec){ return rec.id; });
+      if (stale.length > 0) {
+        for (var si = 0; si < stale.length; si += 10) {
+          var sbatch = stale.slice(si, si + 10);
+          var squery = sbatch.map(function(id){ return 'records[]=' + id; }).join('&');
+          fetch(AT_URL + '?' + squery, {method:'DELETE', headers:AT_HEADERS})
+            .catch(function(e){ console.warn('AT stale purge failed:', e); });
+        }
+        stale.forEach(function(id){
+          Object.keys(atRecordIds).forEach(function(k){
+            if (atRecordIds[k] === id) delete atRecordIds[k];
+          });
+        });
+        console.log('Purged ' + stale.length + ' stale SKU records from Airtable');
+      }
 
-> Each single has a rich, detailed profile page. [PAUSE]
->
-> At the top, action buttons let a shadchan instantly create a match, add a task, manage private labels, or download the full profile as a PDF.
->
-> A unique feature — **"I Know This Single"** — allows shadchanim to mark themselves as familiar with a candidate, building a network of trusted references right inside the profile.
->
-> Tabs organize everything: the full profile, related matches, tasks, dating history, and private notes. [PAUSE] Private photos uploaded by a shadchan remain visible only to that shadchan — protecting privacy at every step.
+      // Find SKUs not yet in Airtable and create them
+      var missing = SKUS.filter(function(s){ return !atRecordIds[s.sku]; });
+      if (missing.length === 0) {
+        updateAtStatus('✅ Airtable connected', 'var(--green)');
+        return;
+      }
 
----
+      // Create records in batches of 10 (Airtable limit)
+      var batches = [];
+      for (var i=0; i<missing.length; i+=10) batches.push(missing.slice(i,i+10));
 
-## SCENE 6 — SUGGESTIONS
+      var chain = Promise.resolve();
+      batches.forEach(function(batch) {
+        chain = chain.then(function() {
+          var records = batch.map(function(s) {
+            return {fields:{SKU:s.sku,'Item Name':s.name,Category:s.cat,Needed:0,Done:0,'Still Need':0}};
+          });
+          return fetch(AT_URL, {method:'POST',headers:AT_HEADERS,body:JSON.stringify({records:records})})
+            .then(function(r){return r.json();})
+            .then(function(data) {
+              if (data.records) data.records.forEach(function(rec){
+                if (rec.fields && rec.fields.SKU) atRecordIds[rec.fields.SKU] = rec.id;
+              });
+            });
+        });
+      });
 
-> The **Suggestions** module is where shidduchim come to life. [PAUSE]
->
-> Shadchanim can view suggestions in a clean table format — or switch to a visual Kanban board that organizes every match by stage: Pending, Current, Going Out, On Hold, Past, Engaged, and finally — Married.
->
-> Creating a new suggestion is as simple as selecting a boy, selecting a girl, and adding notes. From there, the platform tracks every step of the journey.
+      chain.then(function(){
+        updateAtStatus('✅ Airtable connected — ' + SKUS.length + ' items ready', 'var(--green)');
+        // Sync order statuses now that record IDs are loaded
+        if(Object.keys(orders).length > 0) {
+          atSyncOrders();
+          setTimeout(atUpdateOrderStatuses, 2000);
+        }
+        // Push current counts if any
+        atPushAllCounts();
+      }).catch(function(e){
+        updateAtStatus('⚠️ Airtable setup error', 'var(--orange)');
+        console.warn('AT init error:', e);
+      });
+    })
+    .catch(function(e){
+      updateAtStatus('⚠️ Could not connect to Airtable', 'var(--orange)');
+      console.warn('AT fetch error:', e);
+    });
+}
 
----
+function atPushScan(sku) {
+  var recId = atRecordIds[sku];
+  if (!recId) return;
+  var done = prodCount[sku].done;
+  var needed = prodCount[sku].needed;
+  var stillNeed = Math.max(0, needed - done);
+  fetch(AT_URL + '/' + recId, {
+    method: 'PATCH',
+    headers: AT_HEADERS,
+    body: JSON.stringify({fields:{Done:done,Needed:needed,'Still Need':stillNeed}})
+  }).catch(function(e){console.warn('AT scan push failed:', e);});
+}
 
-## SCENE 7 — CALENDAR & TASKS
+function atPushAllCounts() {
+  var updates = SKUS.filter(function(s){
+    return atRecordIds[s.sku] && (prodCount[s.sku].done > 0 || prodCount[s.sku].needed > 0);
+  });
+  if (updates.length === 0) return;
+  // Batch update in groups of 10
+  for (var i=0; i<updates.length; i+=10) {
+    var batch = updates.slice(i,i+10);
+    var records = batch.map(function(s) {
+      var done = prodCount[s.sku].done;
+      var needed = prodCount[s.sku].needed;
+      return {id:atRecordIds[s.sku], fields:{Done:done, Needed:needed, 'Still Need':Math.max(0,needed-done)}};
+    });
+    fetch(AT_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records:records})
+    }).catch(function(e){console.warn('AT batch push failed:', e);});
+  }
+}
 
-> Staying on top of follow-ups is critical — and **myMatSH** makes it effortless. [PAUSE]
->
-> A combined tasks panel and full monthly calendar view keeps every deadline in sight. Days with active tasks are highlighted, today's date is always front and center, and adding a new task takes just a click.
+// Push all orders to Airtable Orders table
+function atSyncOrders() {
+  if (Object.keys(orders).length === 0) return;
 
----
+  // First fetch existing order records
+  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      // Build map of existing order numbers -> record IDs
+      if (data.records) {
+        data.records.forEach(function(rec) {
+          if (rec.fields && rec.fields['Order Number']) {
+            atOrderRecordIds[rec.fields['Order Number']] = rec.id;
+          }
+        });
+      }
 
-## SCENE 8 — MESSAGES & GROUPS
+      // Find orders not yet in Airtable
+      var newOrders = Object.keys(orders).filter(function(num) {
+        return !atOrderRecordIds[num];
+      });
 
-> The platform's built-in **messaging system** lets shadchanim communicate securely without leaving the app. [PAUSE]
->
-> And with **Groups**, shadchanim can collaborate as a team — sharing access to singles and suggestions within a private group context. Perfect for organizations, family teams, or mentorship pairings.
+      if (newOrders.length === 0) {
+        atUpdateOrderStatuses();
+        return;
+      }
 
----
+      // Create new order records in batches of 10
+      var batches = [];
+      for (var i = 0; i < newOrders.length; i += 10) {
+        batches.push(newOrders.slice(i, i + 10));
+      }
 
-## SCENE 9 — DIRECTORIES
+      var chain = Promise.resolve();
+      batches.forEach(function(batch) {
+        chain = chain.then(function() {
+          var records = batch.map(function(num) {
+            var order = orders[num];
+            var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;}, 0);
+            return {fields: {
+              'Order Number': num,
+              'Customer': order.customer || '',
+              'Status': 'Not Ready',
+              'Shipped': false,
+              'Total Items': totalItems,
+              'Items Ready': 0
+            }};
+          });
+          return fetch(AT_ORDERS_URL, {
+            method: 'POST',
+            headers: AT_HEADERS,
+            body: JSON.stringify({records: records})
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data) {
+            if (data.records) {
+              data.records.forEach(function(rec) {
+                if (rec.fields && rec.fields['Order Number']) {
+                  atOrderRecordIds[rec.fields['Order Number']] = rec.id;
+                }
+              });
+            }
+          });
+        });
+      });
 
-> The **Shadchanim Directory** makes it easy to find and connect with other shadchanim — searchable by name, organization, or location, with experience level and style clearly displayed on every card. [PAUSE]
->
-> The **Organizations** page highlights respected shidduch organizations like Adopt A Shadchan and MSI, making affiliation and collaboration simple.
+      chain.then(function() {
+        atUpdateOrderStatuses();
+      });
+    })
+    .catch(function(e){ console.warn('AT orders sync error:', e); });
+}
 
----
+// Update order statuses based on FIFO allocation
+function atUpdateOrderStatuses() {
+  var fifo = computeFifoAllocation();
+  var updates = [];
+  Object.keys(orders).forEach(function(num) {
+    var recId = atOrderRecordIds[num];
+    if (!recId) return;
+    var f = fifo[num];
+    var status = f.shipped ? 'Shipped' : (f.allReady ? 'Ready Now' : 'Not Ready');
+    updates.push({id: recId, fields: {
+      'Status': status,
+      'Total Items': f.totalItems,
+      'Items Ready': f.itemsReady,
+      'Shipped': f.shipped
+    }});
+  });
 
-## SCENE 10 — LABELS & PRIVACY
+  if (updates.length === 0) return;
 
-> **Labels** are private organizational tags — completely invisible to other users. [PAUSE]
->
-> Whether it's "on the ball," "out of town," or any custom category, labels help shadchanim organize their singles the way they think — privately, and only for themselves.
+  // Batch update in groups of 10
+  for (var i = 0; i < updates.length; i += 10) {
+    var batch = updates.slice(i, i + 10);
+    fetch(AT_ORDERS_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records: batch})
+    }).catch(function(e){ console.warn('AT order status update failed:', e); });
+  }
+}
 
----
+// Clear orders from Airtable — fetch all records first then delete
+function atClearOrders() {
+  // Always fetch from Airtable first in case local map is empty
+  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      if (!data.records || data.records.length === 0) return;
+      var recIds = data.records.map(function(r){ return r.id; });
+      // Delete in batches of 10
+      for (var i = 0; i < recIds.length; i += 10) {
+        var batch = recIds.slice(i, i + 10);
+        var query = batch.map(function(id){ return 'records[]=' + id; }).join('&');
+        fetch(AT_ORDERS_URL + '?' + query, {
+          method: 'DELETE',
+          headers: AT_HEADERS
+        }).catch(function(e){ console.warn('AT order delete failed:', e); });
+      }
+      atOrderRecordIds = {};
+    })
+    .catch(function(e){ console.warn('AT order clear fetch failed:', e); });
+}
 
-## SCENE 11 — MY PROFILE
+function atClearAll() {
+  // Reset all records in Airtable to 0
+  var skus = Object.keys(atRecordIds);
+  if (skus.length === 0) return;
+  for (var i=0; i<skus.length; i+=10) {
+    var batch = skus.slice(i,i+10);
+    var records = batch.map(function(sku) {
+      return {id:atRecordIds[sku], fields:{Done:0, Needed:0, 'Still Need':0}};
+    });
+    fetch(AT_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records:records})
+    }).catch(function(e){console.warn('AT clear failed:', e);});
+  }
+  updateAtStatus('✅ Airtable cleared', 'var(--green)');
+}
 
-> Every shadchan has their own profile — managed across four simple tabs: personal information, availability and contact preferences, references and settings, and private labels. [PAUSE]
->
-> Shadchanim can specify languages spoken, years of experience, age brackets they work with, preferred contact methods, and even mark themselves as available for advocacy. [PAUSE] Privacy controls let users hide personal details, and notification preferences keep them informed by email or text.
+function updateAtStatus(msg, color) {
+  var el = document.getElementById('at-status');
+  if (el) { el.textContent = msg; el.style.color = color; }
+}
 
----
+// ── STATE ────────────────────────────────────────────────
+var orders = {};
+var scanCounts = {}; // sku -> done count (persisted separately from prodCount)
+var currentOrder = null;
+var pendingUnmatched = [];
+var mode = 'prod';
+var prodHistory = [];
+var packHistory = [];
 
-## SCENE 12 — INTELLIGENT FEATURES
+// ── PERSISTENCE ──────────────────────────────────────────
+function saveSession() {
+  try {
+    var data = {
+      orders: orders,
+      scanCounts: scanCounts,
+      prodHistory: prodHistory.slice(0,50),
+      packHistory: packHistory.slice(0,50),
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch(e) { console.warn('Save failed:', e); }
+}
 
-> Throughout the platform, **AI assistance** is built in where it matters most. [PAUSE]
->
-> Resume upload and auto-fill. Camera-based resume capture. Intelligent duplicate detection. One-click PDF export of any profile. And a floating AI help assistant — always available in the bottom corner — ready to answer any platform question in natural language.
+function loadSession() {
+  try {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return false;
+    var data = JSON.parse(raw);
+    if (!data || !data.orders) return false;
 
----
+    orders = data.orders || {};
+    scanCounts = data.scanCounts || {};
+    prodHistory = data.prodHistory || [];
+    packHistory = data.packHistory || [];
 
-## SCENE 13 — DESIGNED FOR EVERY DEVICE
+    // Restore scan counts into prodCount
+    Object.keys(scanCounts).forEach(function(sku){
+      if (prodCount[sku]) prodCount[sku].done = scanCounts[sku];
+    });
 
-> Whether on desktop or mobile, **myMatSH** adapts beautifully. [PAUSE]
->
-> A clean left sidebar organizes every feature on desktop. On mobile, a streamlined bottom navigation puts the most-used tools just a tap away. And a guided product tour is always available — making onboarding effortless for new shadchanim.
+    // Rebuild needed from orders
+    rebuildNeeded();
 
----
+    var orderCount = Object.keys(orders).length;
+    var totalScansRestored = Object.values(scanCounts).reduce(function(s,v){return s+v;},0);
 
-## SCENE 14 — CLOSING
+    if (orderCount > 0) {
+      var bar = document.getElementById('session-bar');
+      bar.classList.add('visible');
+      document.getElementById('session-bar-sub').textContent =
+        orderCount + ' orders · ' + totalScansRestored + ' scans restored from last session';
+      document.getElementById('orders-loaded-txt').textContent = orderCount + ' orders loaded';
+      document.getElementById('orders-loaded-txt').style.color = 'var(--green)';
+      document.getElementById('csv-status').textContent = orderCount + ' orders loaded (restored from previous session)';
+    }
 
-> **myMatSH** — bringing modern tools to timeless work. [PAUSE]
->
-> More visibility. Smarter search. Stronger collaboration. And a secure, private home for every shidduch you make. [PAUSE]
->
-> Visit **mymatsh.vercel.app** to learn more — or apply today to join the platform.
+    return orderCount > 0;
+  } catch(e) { console.warn('Load failed:', e); return false; }
+}
 
----
+function clearEverything() {
+  var confirmed = confirm(
+    'This will permanently clear ALL data:\n\n' +
+    '• All orders\n• All scan counts\n• All pack progress\n• All history\n\n' +
+    'Use this at the end of a season or when starting fresh.\n\nAre you sure?'
+  );
+  if (!confirmed) return;
+  localStorage.removeItem(STORE_KEY);
+  orders = {}; scanCounts = {}; currentOrder = null;
+  pendingUnmatched = []; prodHistory = []; packHistory = [];
+  SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
+  atClearAll();
+  atClearOrders();
+  document.getElementById('orders-loaded-txt').textContent = 'No orders loaded';
+  document.getElementById('orders-loaded-txt').style.color = 'rgba(255,255,255,0.7)';
+  document.getElementById('csv-status').textContent = 'No orders loaded — export your orders CSV from Shopify and drop it here';
+  document.getElementById('session-bar').classList.remove('visible');
+  document.getElementById('unmatched-box').classList.remove('visible');
+  document.getElementById('order-hdr').classList.remove('vis');
+  document.getElementById('pack-scan-wrap').style.display = 'none';
+  document.getElementById('pack-empty').style.display = '';
+  renderProdGrid(); updateProdStats();
+  renderProdHist(); renderPackHist();
+  showFlash('All data cleared — fresh start!', 'ok');
+}
 
-## ALTERNATE SHORT CLOSE (if needed for time)
+// ── NAME MATCHING ────────────────────────────────────────
+function norm(str) {
+  return str.toLowerCase()
+    .replace(/[\u2018\u2019\u201c\u201d\u2032\u2033]/g,"")
+    .replace(/[""''`]/g,"")
+    .replace(/[-–—]/g," ")
+    .replace(/[^a-z0-9 ]/g," ")
+    .replace(/\s+/g," ").trim();
+}
 
-> **myMatSH** — streamlining the sacred work of making shidduchim. Visit us today.
+// Names Shopify/QuickBooks use that will never fuzzy-match on their own.
+// Add a line here whenever an item lands in the orange unmatched box.
+var ALIASES = {
+  "chicken soup":"FSO-008",
+  "traditional chicken soup":"FSO-008",
+  "capons with broccoli filling new":"FEN-021",
+  "capons with kishka filling new":"FEN-008",
+  "potato puffs":"FSD-017",
+  "sesame string beans":"FSD-018",
+  "string beans and peppers":"FSD-018"
+};
 
----
+function shopifyNameToSKU(title) {
+  var nFullCheck = norm(title);
 
-**END OF SCRIPT**
+  // Alias table wins over everything else
+  if (ALIASES[nFullCheck]) return ALIASES[nFullCheck];
+  var aliasBase = norm(title.split(/\s+[-\u2013]\s+/)[0]);
+  if (ALIASES[aliasBase]) return ALIASES[aliasBase];
+
+  // Strategy 0: items with duplicate names — match on size too
+  // e.g. "Fruit Crisp - Packed 12" -> SID-004 not SID-003
+  var dupCheck = {};
+  SKUS.forEach(function(s){ var k=norm(s.name); dupCheck[k]=(dupCheck[k]||0)+1; });
+  for (var di=0; di<SKUS.length; di++) {
+    var sn = norm(SKUS[di].name);
+    if (dupCheck[sn] > 1) {
+      var ss = norm(SKUS[di].size);
+      var sizeWords = ss.split(' ').filter(function(w){return w.length>1;});
+      var sizeMatch = sizeWords.some(function(w){ return nFullCheck.indexOf(w) !== -1; });
+      if (nFullCheck.indexOf(sn) !== -1 && sizeMatch) return SKUS[di].sku;
+    }
+  }
+
+  var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9\s*["""''`]?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
+  var n = norm(base);
+  var nFull = norm(title);
+
+  // Exact match on base name
+  for (var i=0;i<SKUS.length;i++) { if (norm(SKUS[i].name)===n) return SKUS[i].sku; }
+  // Exact match on full title
+  for (var i=0;i<SKUS.length;i++) { if (norm(SKUS[i].name)===nFull) return SKUS[i].sku; }
+  // SKU name contained in shopify title
+  for (var i=0;i<SKUS.length;i++) {
+    var sn=norm(SKUS[i].name);
+    if (nFull.indexOf(sn)!==-1&&sn.length>6) return SKUS[i].sku;
+  }
+  // Fuzzy word match
+  var titleWords=n.split(" ").filter(function(w){return w.length>3;});
+  var bestSku=null,bestScore=0;
+  for (var i=0;i<SKUS.length;i++) {
+    var skuWords=norm(SKUS[i].name).split(" ").filter(function(w){return w.length>3;});
+    var matches=0;
+    titleWords.forEach(function(w){if(skuWords.indexOf(w)!==-1)matches++;});
+    var score=skuWords.length>0?matches/skuWords.length:0;
+    if(score>bestScore&&score>=0.6){bestScore=score;bestSku=SKUS[i].sku;}
+  }
+  return bestSku;
+}
+
+// ── CSV LOADING ──────────────────────────────────────────
+function toggleDropZone() {
+  document.getElementById('drop-zone').classList.toggle('visible');
+}
+function dragOver(e){e.preventDefault();document.getElementById('drop-zone').classList.add('drag-over');}
+function dragLeave(){document.getElementById('drop-zone').classList.remove('drag-over');}
+function dropFile(e){e.preventDefault();dragLeave();processFile(e.dataTransfer.files[0]);}
+function fileChosen(e){processFile(e.target.files[0]);}
+
+function processFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){parseShopifyCSV(e.target.result);};
+  reader.readAsText(file);
+}
+
+function parseShopifyCSV(text) {
+  var lines = text.split('\n');
+  if (lines.length < 2) {showFlash('CSV appears empty','err');return;}
+  var header = parseCSVLine(lines[0]);
+  var col = {};
+  header.forEach(function(h,i){col[h.trim().toLowerCase()]=i;});
+
+  var orderNumCol = col['name']!==undefined?col['name']:col['order'];
+  var customerCol = col['billing name']!==undefined?col['billing name']:col['email'];
+  var lineItemCol = col['lineitem name']!==undefined?col['lineitem name']:col['lineitem_name'];
+  var qtyCol = col['lineitem quantity']!==undefined?col['lineitem quantity']:col['lineitem_quantity'];
+
+  if (orderNumCol===undefined||lineItemCol===undefined) {
+    showFlash('Could not read CSV — export as CSV for Excel from Shopify Orders','err');
+    return;
+  }
+
+  var newOrders=0, skippedOrders=0, matched=0;
+  var unmatchedMap={};
+  var newOrderData={};
+
+  for (var i=1;i<lines.length;i++) {
+    var line=lines[i].trim();
+    if(!line) continue;
+    var cols=parseCSVLine(line);
+    if(!cols[orderNumCol]) continue;
+    var orderNum=cols[orderNumCol].replace(/^#/,'').trim();
+    var customer=customerCol!==undefined?(cols[customerCol]||'Unknown'):'Unknown';
+    var itemName=lineItemCol!==undefined?(cols[lineItemCol]||''):'';
+    var qty=parseInt(cols[qtyCol]||'1',10)||1;
+    if(!itemName) continue;
+
+    // Skip if order already exists
+    if (orders[orderNum]) { skippedOrders++; continue; }
+
+    if(!newOrderData[orderNum]) { newOrderData[orderNum]={customer:customer,items:[]}; newOrders++; }
+    var sku=shopifyNameToSKU(itemName);
+    if(sku) {
+      var existing=newOrderData[orderNum].items.find(function(it){return it.sku===sku;});
+      if(existing) existing.qtyOrdered+=qty;
+      else newOrderData[orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:qty,qtyPacked:0});
+      matched++;
+    } else {
+      if(!unmatchedMap[itemName]) unmatchedMap[itemName]=[];
+      unmatchedMap[itemName].push({orderNum:orderNum,customer:customer,qty:qty});
+    }
+  }
+
+  // Merge new orders into existing
+  Object.keys(newOrderData).forEach(function(num){ orders[num]=newOrderData[num]; });
+
+  pendingUnmatched=Object.keys(unmatchedMap).map(function(name){
+    return {shopifyName:name,occurrences:unmatchedMap[name]};
+  });
+
+  rebuildNeeded();
+  saveSession();
+  atPushAllCounts();
+  atSyncOrders();
+
+  var orderCount=Object.keys(orders).length;
+  document.getElementById('orders-loaded-txt').textContent=orderCount+' orders loaded';
+  document.getElementById('orders-loaded-txt').style.color='var(--green)';
+  document.getElementById('session-bar').classList.remove('visible');
+
+  var statusParts=[orderCount+' orders total'];
+  if(newOrders>0) statusParts.push(newOrders+' new added');
+  if(skippedOrders>0) statusParts.push(skippedOrders+' duplicates skipped');
+  statusParts.push(matched+' items matched');
+  document.getElementById('csv-status').textContent=statusParts.join(' · ');
+  document.getElementById('drop-zone').classList.remove('visible');
+
+  if(pendingUnmatched.length>0) {
+    showUnmatchedBox();
+    showFlash('Loaded — '+newOrders+' new orders added, '+skippedOrders+' duplicates skipped, '+pendingUnmatched.length+' items need manual matching below','warn');
+  } else {
+    document.getElementById('unmatched-box').classList.remove('visible');
+    var msg='Loaded — '+newOrders+' new orders added';
+    if(skippedOrders>0) msg+=', '+skippedOrders+' duplicate orders skipped';
+    showFlash(msg,'ok');
+  }
+
+  renderProdGrid(); updateProdStats();
+}
+
+function showUnmatchedBox() {
+  var box=document.getElementById('unmatched-box');
+  var list=document.getElementById('unmatched-list');
+  box.classList.add('visible');
+  list.innerHTML=pendingUnmatched.map(function(u,idx){
+    var options='<option value="">— Select item —</option>';
+    SKUS.forEach(function(s){options+='<option value="'+s.sku+'">'+s.sku+' — '+s.name+' ('+s.size+')</option>';});
+    return '<div class="unmatched-item"><div class="unmatched-name">Shopify: "'+u.shopifyName+'" ('+u.occurrences.length+' order(s))</div><select class="unmatched-select" id="um-select-'+idx+'">'+options+'</select></div>';
+  }).join('');
+}
+
+function applyManualMatches() {
+  var applied=0;
+  pendingUnmatched.forEach(function(u,idx){
+    var sel=document.getElementById('um-select-'+idx);
+    if(!sel||!sel.value) return;
+    var sku=sel.value;
+    u.occurrences.forEach(function(occ){
+      if(!orders[occ.orderNum]) orders[occ.orderNum]={customer:occ.customer,items:[]};
+      var existing=orders[occ.orderNum].items.find(function(it){return it.sku===sku;});
+      if(existing) existing.qtyOrdered+=occ.qty;
+      else orders[occ.orderNum].items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:occ.qty,qtyPacked:0});
+      applied++;
+    });
+  });
+  pendingUnmatched=pendingUnmatched.filter(function(u,idx){
+    var sel=document.getElementById('um-select-'+idx);
+    return !sel||!sel.value;
+  });
+  rebuildNeeded();
+  saveSession();
+  renderProdGrid(); updateProdStats();
+  if(pendingUnmatched.length===0) {
+    document.getElementById('unmatched-box').classList.remove('visible');
+    showFlash('All items matched! '+applied+' assignments applied.','ok');
+  } else {
+    showUnmatchedBox();
+    showFlash(applied+' matched — '+pendingUnmatched.length+' still need assignment','warn');
+  }
+}
+
+function rebuildNeeded() {
+  Object.keys(prodCount).forEach(function(s){prodCount[s].needed=0;});
+  Object.values(orders).forEach(function(order){
+    order.items.forEach(function(item){
+      if(prodCount[item.sku]) prodCount[item.sku].needed+=item.qtyOrdered;
+    });
+  });
+}
+
+function parseCSVLine(line) {
+  var result=[],cur='',inQ=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){result.push(cur);cur='';}
+    else cur+=c;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ── MODE ─────────────────────────────────────────────────
+function setMode(m) {
+  mode=m;
+  document.getElementById('panel-prod').classList.toggle('on',m==='prod');
+  document.getElementById('panel-pack').classList.toggle('on',m==='pack');
+  document.getElementById('panel-cook').classList.toggle('on',m==='cook');
+  document.getElementById('pill-prod').className='pill'+(m==='prod'?' p-active':'');
+  document.getElementById('pill-pack').className='pill'+(m==='pack'?' k-active':'');
+  document.getElementById('pill-cook').className='pill'+(m==='cook'?' p-active':'');
+  if(m==='prod') setTimeout(function(){document.getElementById('prod-input').focus();},50);
+  if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
+  if(m==='cook') renderCookNext();
+}
+
+// ── FLASH ─────────────────────────────────────────────────
+var flashT;
+function showFlash(msg,type) {
+  type=type||'ok';
+  var el=document.getElementById('flash');
+  el.textContent=msg; el.className='flash '+type;
+  clearTimeout(flashT);
+  flashT=setTimeout(function(){el.className='flash';},5000);
+}
+
+// ── PRODUCTION ────────────────────────────────────────────
+// ── UNDO LAST PRODUCTION SCAN ─────────────────────────────
+var lastProdScan = null;
+function undoLastScan() {
+  if (!lastProdScan) { showFlash('Nothing to undo','warn'); return; }
+  var sku = lastProdScan;
+  var item = SKU_MAP[sku];
+  if (!prodCount[sku] || prodCount[sku].done <= 0) {
+    showFlash('Nothing to undo for ' + sku,'warn');
+    lastProdScan = null;
+    document.getElementById('undo-btn').style.display='none';
+    return;
+  }
+  prodCount[sku].done--;
+  scanCounts[sku] = Math.max(0,(scanCounts[sku]||1) - 1);
+  if (prodHistory.length && prodHistory[0].sku === sku) prodHistory.shift();
+  lastProdScan = null;
+  document.getElementById('undo-btn').style.display='none';
+  saveSession();
+  atPushScan(sku);
+  setTimeout(atUpdateOrderStatuses, 1500);
+  showFlash('Removed 1 x ' + item.name + ' — now ' + prodCount[sku].done + ' made','warn');
+  renderProdGrid(); updateProdStats(); renderProdHist();
+  if (mode === 'cook') renderCookNext();
+}
+
+function prodScan() {
+  var inp=document.getElementById('prod-input');
+  var sku=inp.value.trim().toUpperCase();
+  inp.value=''; inp.focus();
+  if(!sku) return;
+  var item=SKU_MAP[sku];
+  if(!item){showFlash('Unknown barcode: "'+sku+'" — not in menu','err');return;}
+  prodCount[sku].done++;
+  scanCounts[sku]=(scanCounts[sku]||0)+1;
+  prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
+  lastProdScan = sku;
+  var ub=document.getElementById('undo-btn'); if(ub) ub.style.display='block';
+  saveSession();
+  atPushScan(sku);
+  setTimeout(atUpdateOrderStatuses, 2000);
+  if(mode==='cook') renderCookNext();
+  var needed=prodCount[sku].needed,done=prodCount[sku].done;
+  showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ALL DONE!':''),'ok');
+  renderProdGrid(); updateProdStats(); renderProdHist();
+}
+
+function renderProdGrid() {
+  var cats={};
+  SKUS.forEach(function(s){if(!cats[s.cat])cats[s.cat]=[];cats[s.cat].push(s);});
+  var container=document.getElementById('prod-cats');
+  container.innerHTML='';
+  for(var cat in cats){
+    var sec=document.createElement('div');
+    sec.className='sec'; sec.textContent=cat; container.appendChild(sec);
+    var grid=document.createElement('div'); grid.className='prod-grid';
+    cats[cat].forEach(function(item){
+      var needed=prodCount[item.sku].needed,done=prodCount[item.sku].done;
+      var isDone=needed>0&&done>=needed,isPartial=done>0&&!isDone;
+      grid.innerHTML+='<div class="pcard '+(isDone?'is-done':isPartial?'is-partial':'')+'"><div class="pcard-sku">'+item.sku+'</div><div class="pcard-name">'+item.name+'</div><div class="pcard-size">'+item.size+'</div><div class="pcard-counts"><div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num '+(needed===0?'d':'')+'">'+( needed||'—')+'</div></div><div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-num '+(done===0?'d':isDone?'g':'o')+'">'+done+'</div></div></div></div>';
+    });
+    container.appendChild(grid);
+  }
+}
+
+function updateProdStats() {
+  var done=0,partial=0,zero=0,totalScans=0;
+  SKUS.forEach(function(s){
+    var c=prodCount[s.sku]; totalScans+=c.done;
+    if(c.done>=c.needed&&c.needed>0) done++;
+    else if(c.done>0) partial++;
+    else zero++;
+  });
+  document.getElementById('s-done').textContent=done;
+  document.getElementById('s-partial').textContent=partial;
+  document.getElementById('s-zero').textContent=zero;
+  document.getElementById('s-scans').textContent=totalScans;
+  var se=document.getElementById('s-skus'); if(se) se.textContent=SKUS.length;
+}
+
+function renderProdHist() {
+  var el=document.getElementById('prod-hist');
+  if(!prodHistory.length){el.innerHTML='<div class="empty"><div class="empty-sub">No scans yet</div></div>';return;}
+  el.innerHTML=prodHistory.slice(0,20).map(function(h){
+    return '<div class="hist-row"><span class="hist-time">'+h.t+'</span><span class="hist-sku g">'+h.sku+'</span><span>'+h.name+' — <strong>#'+h.count+'</strong> made</span></div>';
+  }).join('');
+}
+
+// ── PACK ──────────────────────────────────────────────────
+function loadOrder() {
+  var inp=document.getElementById('order-input');
+  var num=inp.value.trim().replace(/^#/,'');
+  if(!num) return;
+  var od=orders[num];
+  if(!od){showFlash(Object.keys(orders).length===0?'No orders loaded — drop your CSV first':'Order #'+num+' not found','err');return;}
+  currentOrder={num:num,customer:od.customer,items:od.items.map(function(i){return Object.assign({},i);})};
+  document.getElementById('h-order').textContent='#'+num;
+  document.getElementById('h-cust').textContent=od.customer;
+  document.getElementById('h-items').textContent=currentOrder.items.length+' items';
+  document.getElementById('h-status').textContent='Packing';
+  document.getElementById('order-hdr').classList.add('vis');
+  document.getElementById('pack-scan-wrap').style.display='block';
+  document.getElementById('pack-empty').style.display='none';
+  document.getElementById('ship-btn-wrap').style.display='none';
+  renderPackList(); updateProgress();
+  setTimeout(function(){document.getElementById('pack-input').focus();},50);
+}
+
+function packScan() {
+  if(!currentOrder){showFlash('Load an order first','warn');return;}
+  var inp=document.getElementById('pack-input');
+  var sku=inp.value.trim().toUpperCase();
+  inp.value=''; inp.focus();
+  if(!sku) return;
+  var orderItem=currentOrder.items.find(function(i){return i.sku===sku;});
+  if(!orderItem){
+    var gi=SKU_MAP[sku];
+    showFlash(gi?gi.name+' is NOT on Order #'+currentOrder.num+' — wrong box?':'Unknown barcode: "'+sku+'"','err');
+    return;
+  }
+  if(orderItem.qtyPacked>=orderItem.qtyOrdered){showFlash(orderItem.name+' already fully packed','warn');return;}
+  orderItem.qtyPacked++;
+  packHistory.unshift({t:now(),sku:sku,name:orderItem.name,orderNum:currentOrder.num});
+  // Save pack progress back to orders store
+  var storedOrder=orders[currentOrder.num];
+  if(storedOrder){
+    var storedItem=storedOrder.items.find(function(i){return i.sku===sku;});
+    if(storedItem) storedItem.qtyPacked=orderItem.qtyPacked;
+  }
+  saveSession();
+  var rem=orderItem.qtyOrdered-orderItem.qtyPacked;
+  showFlash(rem===0?orderItem.name+' — fully packed!':orderItem.name+' — '+orderItem.qtyPacked+'/'+orderItem.qtyOrdered+' ('+rem+' more)','ok');
+  renderPackList(); updateProgress(); renderPackHist();
+}
+
+function renderPackList() {
+  var el=document.getElementById('pack-list');
+  if(!currentOrder||!currentOrder.items.length){el.innerHTML='';return;}
+  el.innerHTML=currentOrder.items.map(function(item){
+    var packed=item.qtyPacked>=item.qtyOrdered,partial=item.qtyPacked>0&&!packed;
+    var cls=packed?'packed':partial?'partial':'missing';
+    var icon=packed?'✅':partial?'⏳':'○';
+    return '<div class="pack-row '+cls+'"><div class="pack-dot">'+icon+'</div><div class="pack-info"><div class="pack-name">'+item.name+'</div><div class="pack-meta">'+item.size+' · '+item.sku+'</div></div><div class="pack-chip '+(packed?'done':'')+'">'+item.qtyPacked+' / '+item.qtyOrdered+'</div></div>';
+  }).join('');
+}
+
+function updateProgress() {
+  if(!currentOrder) return;
+  var total=currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+  var packed=currentOrder.items.reduce(function(s,i){return s+Math.min(i.qtyPacked,i.qtyOrdered);},0);
+  document.getElementById('prog-fill').style.width=(total>0?packed/total*100:0)+'%';
+  document.getElementById('prog-text').textContent=packed+' of '+total+' items packed';
+  if(packed>=total&&total>0){
+    document.getElementById('h-status').textContent='✅ Complete!';
+    document.getElementById('ship-btn-wrap').style.display='block';
+    showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed — mark it shipped!','ok');
+    // Mark order as packed locally so FIFO excludes it from pool
+    if(orders[currentOrder.num]) orders[currentOrder.num].packed = true;
+    saveSession();
+    // Update Airtable to Ready Now
+    atSetOrderStatus(currentOrder.num, 'Ready Now', total, total);
+    // Refresh order statuses so FIFO recalculates
+    setTimeout(atUpdateOrderStatuses, 500);
+  } else {
+    document.getElementById('ship-btn-wrap').style.display='none';
+  }
+}
+
+function markShipped() {
+  if(!currentOrder) return;
+  var num = currentOrder.num;
+  if(!confirm('Mark Order #'+num+' for '+currentOrder.customer+' as SHIPPED?')) return;
+  // Mark in local orders store
+  if(orders[num]) { orders[num].shipped = true; orders[num].packed = true; }
+  saveSession();
+  // Update Airtable
+  var total = currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+  atSetOrderStatus(num, 'Shipped', total, total, true);
+  document.getElementById('h-status').textContent='🚚 Shipped!';
+  document.getElementById('ship-btn-wrap').style.display='none';
+  showFlash('Order #'+num+' marked as Shipped!','ok');
+  // Refresh cook next if visible
+  if(mode==='cook') renderCookNext();
+}
+
+function atSetOrderStatus(orderNum, status, totalItems, itemsReady, shipped) {
+  var recId = atOrderRecordIds[orderNum];
+  if(!recId) return;
+  fetch(AT_ORDERS_URL + '/' + recId, {
+    method: 'PATCH',
+    headers: AT_HEADERS,
+    body: JSON.stringify({fields:{
+      'Status': status,
+      'Total Items': totalItems,
+      'Items Ready': itemsReady,
+      'Shipped': shipped || false
+    }})
+  }).catch(function(e){ console.warn('AT order status failed:', e); });
+}
+
+function renderPackHist() {
+  var el=document.getElementById('pack-hist');
+  if(!packHistory.length){el.innerHTML='<div class="empty"><div class="empty-sub">No scans yet</div></div>';return;}
+  el.innerHTML=packHistory.slice(0,20).map(function(h){
+    return '<div class="hist-row"><span class="hist-time">'+h.t+'</span><span class="hist-sku b">'+h.sku+'</span><span>'+h.name+' → Order #'+h.orderNum+'</span></div>';
+  }).join('');
+}
+
+// ── EXPORT ────────────────────────────────────────────────
+function exportProdCSV() {
+  var rows=[['SKU','Item Name','Size','Category','Needed','Done','Still Need']];
+  SKUS.forEach(function(s){
+    var c=prodCount[s.sku];
+    rows.push([s.sku,s.name,s.size,s.cat,c.needed||0,c.done,Math.max(0,(c.needed||0)-c.done)]);
+  });
+  downloadCSV(rows,'CookIt_Production_'+dateStamp()+'.csv');
+  showFlash('Exported! Copy column F (Done) into your Google Sheet column E','ok');
+}
+
+function exportOrdersCSV() {
+  if(!currentOrder){showFlash('Load an order first in Pack mode','warn');return;}
+  var rows=[['Order #','Customer','SKU','Item Name','Size','Qty Ordered','Qty Packed','Status']];
+  currentOrder.items.forEach(function(item){
+    var packed=item.qtyPacked>=item.qtyOrdered;
+    rows.push([currentOrder.num,currentOrder.customer,item.sku,item.name,item.size,item.qtyOrdered,item.qtyPacked,packed?'Packed':item.qtyPacked>0?'Partial':'Missing']);
+  });
+  downloadCSV(rows,'CookIt_Order_'+currentOrder.num+'_'+dateStamp()+'.csv');
+  showFlash('Order pack status exported!','ok');
+}
+
+function downloadCSV(rows,filename) {
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+String(v).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function dateStamp() {
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function now() {
+  return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+
+// ── FIFO ALLOCATION ──────────────────────────────────────
+// For each SKU, distribute done count across orders in order number sequence.
+// Returns a map of orderNum -> {allocated: {sku: qty}, fullyReady: bool}
+function computeFifoAllocation() {
+  var allocation = {}; // orderNum -> {sku -> allocatedQty}
+
+  // Initialize allocation for all orders
+  Object.keys(orders).forEach(function(num) {
+    allocation[num] = {};
+    orders[num].items.forEach(function(item) {
+      allocation[num][item.sku] = 0;
+    });
+  });
+
+  // For each SKU:
+  // Step 1 — deduct units consumed by packed/shipped orders from the pool
+  // Step 2 — FIFO allocate remaining units to unpacked orders by order number
+  SKUS.forEach(function(s) {
+    var sku = s.sku;
+    var available = prodCount[sku] ? prodCount[sku].done : 0;
+    if (available === 0) return;
+
+    // Step 1: packed/shipped orders consume from pool first
+    var packedOrders = Object.keys(orders).filter(function(num) {
+      return (orders[num].shipped || orders[num].packed) &&
+             orders[num].items.some(function(item){ return item.sku === sku; });
+    });
+    packedOrders.forEach(function(num) {
+      var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
+      if (!orderItem) return;
+      var consume = Math.min(available, orderItem.qtyOrdered);
+      allocation[num][sku] = consume;
+      available -= consume;
+    });
+
+    // Step 2: FIFO allocate remaining to unshipped orders by order number
+    var openOrders = Object.keys(orders)
+      .filter(function(num) {
+        return !orders[num].shipped && !orders[num].packed &&
+               orders[num].items.some(function(item){ return item.sku === sku; });
+      })
+      .sort(function(a, b) { return parseInt(a) - parseInt(b); });
+
+    openOrders.forEach(function(num) {
+      if (available <= 0) return;
+      var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
+      if (!orderItem) return;
+      var give = Math.min(available, orderItem.qtyOrdered);
+      allocation[num][sku] = give;
+      available -= give;
+    });
+  });
+
+  // Compute readiness for each order
+  var result = {};
+  Object.keys(orders).forEach(function(num) {
+    var order = orders[num];
+    var totalItems = 0, itemsReady = 0, allReady = true;
+    order.items.forEach(function(item) {
+      totalItems += item.qtyOrdered;
+      var allocated = allocation[num][item.sku] || 0;
+      itemsReady += allocated;
+      if (allocated < item.qtyOrdered) allReady = false;
+    });
+    result[num] = {
+      allocation: allocation[num],
+      totalItems: totalItems,
+      itemsReady: itemsReady,
+      allReady: allReady && totalItems > 0,
+      shipped: orders[num].shipped || false
+    };
+  });
+
+  return result;
+}
+
+// ── COOK NEXT ────────────────────────────────────────────
+function renderCookNext() {
+  var fifo = computeFifoAllocation();
+
+  // For each SKU, count how many NOT-YET-ready orders are blocked by it (using FIFO)
+  var skuBlockCount = {};
+  var skuStillNeed = {};
+  SKUS.forEach(function(s) {
+    skuBlockCount[s.sku] = 0;
+    skuStillNeed[s.sku] = Math.max(0, (prodCount[s.sku].needed||0) - prodCount[s.sku].done);
+  });
+
+  // Count orders blocked by each SKU using FIFO allocation
+  Object.keys(orders).forEach(function(num) {
+    var order = orders[num];
+    if (order.shipped) return;
+    var f = fifo[num];
+    if (f.allReady) return; // already ready
+
+    // Find which items are under-allocated for this order
+    order.items.forEach(function(item) {
+      var allocated = f.allocation[item.sku] || 0;
+      if (allocated < item.qtyOrdered) {
+        skuBlockCount[item.sku]++;
+      }
+    });
+  });
+
+  // Build cook list - only items still needed
+  var cookList = SKUS.filter(function(s) {
+    return skuStillNeed[s.sku] > 0;
+  }).map(function(s) {
+    return {sku:s.sku, name:s.name, size:s.size, cat:s.cat,
+      stillNeed:skuStillNeed[s.sku], blocked:skuBlockCount[s.sku],
+      done:prodCount[s.sku].done, needed:prodCount[s.sku].needed};
+  }).sort(function(a,b) {
+    if (b.blocked !== a.blocked) return b.blocked - a.blocked;
+    return b.stillNeed - a.stillNeed;
+  });
+
+  // Ready orders using FIFO (not yet shipped)
+  var readyOrders = Object.keys(orders).filter(function(num) {
+    if (orders[num].shipped) return false;
+    return fifo[num] && fifo[num].allReady;
+  });
+  // Also include orders marked ready via Pack & Verify
+  var shippedOrders = Object.keys(orders).filter(function(num) {
+    return orders[num].shipped;
+  });
+
+  // Render cook list
+  var cookEl = document.getElementById('cook-next-list');
+  if (cookList.length === 0) {
+    cookEl.innerHTML = '<div class="empty"><div class="empty-sub">All items cooked! Check Ready Orders below.</div></div>';
+  } else {
+    cookEl.innerHTML = cookList.slice(0,20).map(function(item, idx) {
+      var urgency = item.blocked >= 3 ? 'urgent' : item.blocked >= 1 ? 'medium' : 'low';
+      var rank = idx + 1;
+      return '<div class="cook-row '+urgency+'">'
+        + '<div class="cook-badge '+urgency+'"><div class="cook-badge-num">#'+rank+'</div><div class="cook-badge-lbl">'+item.blocked+' orders</div></div>'
+        + '<div class="cook-info"><div class="cook-name">'+item.name+'</div>'
+        + '<div class="cook-meta">'+item.size+' · '+item.sku+' · '+item.cat+'</div></div>'
+        + '<div class="cook-still">'+item.stillNeed+' more needed</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // Render ready orders
+  var readyEl = document.getElementById('ready-orders-list');
+  if (readyOrders.length === 0 && shippedOrders.length === 0) {
+    readyEl.innerHTML = '<div class="empty"><div class="empty-sub">No orders fully ready yet — keep cooking!</div></div>';
+  } else {
+    var html = '';
+    readyOrders.forEach(function(num) {
+      var order = orders[num];
+      var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+      html += '<div class="ready-row">'
+        + '<div class="ready-icon">✅</div>'
+        + '<div class="cook-info"><div class="ready-name">Order #'+num+' — '+order.customer+'</div>'
+        + '<div class="ready-meta">'+order.items.length+' items · '+totalItems+' units — ready to pack!</div></div>'
+        + '</div>';
+    });
+    shippedOrders.forEach(function(num) {
+      var order = orders[num];
+      var totalItems = order.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
+      html += '<div class="ready-row" style="opacity:0.6;background:#f0f0f0;border-color:#ccc;">'
+        + '<div class="ready-icon">🚚</div>'
+        + '<div class="cook-info"><div class="ready-name" style="color:var(--muted);">Order #'+num+' — '+order.customer+'</div>'
+        + '<div class="ready-meta">'+totalItems+' units — shipped</div></div>'
+        + '</div>';
+    });
+    readyEl.innerHTML = html;
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────
+loadSession();
+renderProdGrid();
+updateProdStats();
+renderProdHist();
+renderPackHist();
+document.getElementById('prod-input').focus();
+atInit();
+// Order status refresh handled inside atInit after record IDs are loaded
+</script>
+</body>
+</html>
