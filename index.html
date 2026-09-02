@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v11 - updated menu + specials -->
+<!-- Scanner v13 - S'mores Bar renamed to match store -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -296,7 +296,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 </main>
 
 <script>
-console.log("Scanner v11 loaded - updated Fall 2026 menu + specials");
+console.log("Scanner v13 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -371,7 +371,7 @@ const SKUS = [
   {sku:"FSA-007",name:"Beef Fry",size:"Full",cat:"Salads"},
   {sku:"FSA-008",name:"Grilled Chicken",size:"Full",cat:"Salads"},
   {sku:"FDS-001",name:"Frozen Blueberry Crumble",size:"9\" Round",cat:"Desserts"},
-  {sku:"FDS-002",name:"S'mores Bars Served Warm",size:"9x13",cat:"Desserts"},
+  {sku:"FDS-002",name:"S'mores Bar",size:"9x13",cat:"Desserts"},
   {sku:"FDS-003",name:"Peanut Butter Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
   {sku:"FDS-004",name:"Lotus Ice Cream Pie",size:"9\" Round",cat:"Desserts"},
   {sku:"FDS-005",name:"Light Lemon Mousse",size:"9\" Round",cat:"Desserts"},
@@ -786,6 +786,8 @@ function norm(str) {
 // Add a line here whenever an item lands in the orange unmatched box.
 var ALIASES = {
   "chicken soup":"FSO-008",
+  "smores bar":"FDS-002",
+  "smores bars":"FDS-002",
   "traditional chicken soup":"FSO-008",
   "capons with broccoli filling new":"FEN-021",
   "capons with kishka filling new":"FEN-008",
@@ -802,18 +804,34 @@ function shopifyNameToSKU(title) {
   var aliasBase = norm(title.split(/\s+[-\u2013]\s+/)[0]);
   if (ALIASES[aliasBase]) return ALIASES[aliasBase];
 
-  // Strategy 0: items with duplicate names — match on size too
-  // e.g. "Fruit Crisp - Packed 12" -> SID-004 not SID-003
+  // Strategy 0: menu items that SHARE a name (Fruit Crisp, Apple Crisp,
+  // Broccoli Kugel) must be told apart by SIZE.
+  // Shopify writes 9" where the menu says '9" Round', and the old code
+  // dropped single-character tokens, so "9" was thrown away and every
+  // 9" order silently matched the Packed 12 SKU. Score size tokens instead,
+  // keep digits, and if it's genuinely ambiguous return null so it goes to
+  // the manual-assign box rather than guessing the wrong pan.
   var dupCheck = {};
   SKUS.forEach(function(s){ var k=norm(s.name); dupCheck[k]=(dupCheck[k]||0)+1; });
-  for (var di=0; di<SKUS.length; di++) {
-    var sn = norm(SKUS[di].name);
-    if (dupCheck[sn] > 1) {
-      var ss = norm(SKUS[di].size);
-      var sizeWords = ss.split(' ').filter(function(w){return w.length>1;});
-      var sizeMatch = sizeWords.some(function(w){ return nFullCheck.indexOf(w) !== -1; });
-      if (nFullCheck.indexOf(sn) !== -1 && sizeMatch) return SKUS[di].sku;
-    }
+
+  var dupCands = SKUS.filter(function(s){
+    var sn = norm(s.name);
+    return dupCheck[sn] > 1 && nFullCheck.indexOf(sn) !== -1;
+  });
+
+  if (dupCands.length) {
+    var bestSkuD = null, bestScoreD = -1, tiedD = false;
+    dupCands.forEach(function(s){
+      var sn = norm(s.name);
+      var remTokens  = nFullCheck.replace(sn, ' ').split(' ').filter(Boolean);
+      var sizeTokens = norm(s.size).split(' ').filter(Boolean);
+      var sc = 0;
+      sizeTokens.forEach(function(t){ if (remTokens.indexOf(t) !== -1) sc++; });
+      if (sc > bestScoreD) { bestSkuD = s.sku; bestScoreD = sc; tiedD = false; }
+      else if (sc === bestScoreD) { tiedD = true; }
+    });
+    if (bestScoreD > 0 && !tiedD) return bestSkuD;
+    return null;
   }
 
   var base = title.replace(/\s*[-–]\s*(packed|half|9x13|9\s*["""''`]?|mini|one|two|six|ten|twelve|side|whole|ready|pockets|\d).*/i,"").trim();
