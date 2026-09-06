@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v13 - S'mores Bar renamed to match store -->
+<!-- Scanner v14 - label printing added -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -170,6 +170,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <button class="pill p-active" id="pill-prod" onclick="setMode('prod')">🍳 Production</button>
       <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
       <button class="pill" id="pill-cook" onclick="setMode('cook')">🎯 Cook Next</button>
+      <button class="pill" id="pill-labels" onclick="setMode('labels')">🏷 Labels</button>
     </div>
     <button class="clear-btn" onclick="clearEverything()">🗑 Clear All</button>
   </div>
@@ -293,10 +294,40 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div class="sec">Orders Ready to Pack</div>
     <div id="ready-orders-list"><div class="empty"><div class="empty-sub">No orders ready yet</div></div></div>
   </div>
+  <!-- LABELS PANEL -->
+  <div class="panel" id="panel-labels">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print by Order</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="lb-order-sel" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;min-width:220px;"></select>
+        <button class="csv-btn" onclick="genLabelsOrder()">Generate</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Labels for every item in the order, each repeated by its quantity, alphabetical.</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print Item Sheet</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="lb-item-sel" onchange="lbItemQtyDefault()" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;min-width:260px;"></select>
+        <input id="lb-item-qty" type="number" min="1" style="width:80px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
+        <button class="csv-btn" onclick="genLabelsItem()">Generate</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One item, a full sheet, repeated by quantity (defaults to how many are needed).</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Batch by Category</div>
+      <div id="lb-cats"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One click prints every item in the category that has quantity needed - one sheet per item, alphabetical.</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
+      <span id="lb-summary" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+    <div id="lb-preview"></div>
+  </div>
 </main>
 
 <script>
-console.log("Scanner v13 loaded");
+console.log("Scanner v14 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -1029,9 +1060,12 @@ function setMode(m) {
   document.getElementById('panel-prod').classList.toggle('on',m==='prod');
   document.getElementById('panel-pack').classList.toggle('on',m==='pack');
   document.getElementById('panel-cook').classList.toggle('on',m==='cook');
+  document.getElementById('panel-labels').classList.toggle('on',m==='labels');
   document.getElementById('pill-prod').className='pill'+(m==='prod'?' p-active':'');
   document.getElementById('pill-pack').className='pill'+(m==='pack'?' k-active':'');
   document.getElementById('pill-cook').className='pill'+(m==='cook'?' p-active':'');
+  document.getElementById('pill-labels').className='pill'+(m==='labels'?' k-active':'');
+  if(m==='labels') renderLabelsPanel();
   if(m==='prod') setTimeout(function(){document.getElementById('prod-input').focus();},50);
   if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
   if(m==='cook') renderCookNext();
@@ -1474,6 +1508,151 @@ renderPackHist();
 document.getElementById('prod-input').focus();
 atInit();
 // Order status refresh handled inside atInit after record IDs are loaded
+
+// ── LABEL PRINTING ──────────────────────────────────────
+// Sheet layout config - retarget to other label stock by editing these values only.
+var LABEL_CONFIG = {labelW:2.625, labelH:1, cols:3, rows:10, pageW:8.5, pageH:11, marginTop:0.5, marginBottom:0.5, marginLeft:0.19, marginRight:0.19}; // inches, Avery 5160 default
+
+var LABEL_CSS =
+"@page{size:letter;margin:0;}\n" +
+".sheet{display:grid;gap:0;margin:0 auto 18px;background:#fff;border:1px dashed #d0d7e6;overflow:hidden;box-sizing:border-box;}\n" +
+".label{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:1px 3px;box-sizing:border-box;}\n" +
+".lb-blank{visibility:hidden;}\n" +
+".lb-name{font-family:'DM Sans',sans-serif;font-weight:600;font-size:10px;line-height:1.15;color:#000;}\n" +
+".lb-name.sm{font-size:8.5px;}\n" +
+".lb-name.xs{font-size:7.5px;}\n" +
+".lb-size{font-family:'DM Sans',sans-serif;font-weight:400;font-size:8px;color:#444;}\n" +
+".lb-bar{line-height:0;margin:2px 0 1px;}\n" +
+".lb-sku{font-family:'DM Mono',monospace;font-weight:500;font-size:8px;letter-spacing:0.5px;color:#000;}\n";
+
+var LABEL_PRINT_CSS = LABEL_CSS +
+"body{margin:0;}\n" +
+".sheet{border:none;margin:0;page-break-after:always;}\n";
+
+(function(){ var st=document.createElement('style'); st.textContent=LABEL_CSS; document.head.appendChild(st); })();
+
+// CODE128 (subset B) barcode generator - inline, no external dependencies.
+var CODE128_WIDTHS = ["212222","222122","222221","121223","121322","131222","122213","122312","132212","221213","221312","231212","112232","122132","122231","113222","123122","123221","223211","221132","221231","213212","223112","312131","311222","321122","321221","312212","322112","322211","212123","212321","232121","111323","131123","131321","112313","132113","132311","211313","231113","231311","112133","112331","132131","113123","113321","133121","313121","211331","231131","213113","213311","213131","311123","311321","331121","312113","312311","332111","314111","221411","431111","111224","111422","121124","121421","141122","141221","112214","112412","122114","122411","142112","142211","241211","221114","413111","241112","134111","111242","121142","121241","114212","124112","124211","411212","421112","421211","212141","214121","412121","111143","111341","131141","114113","114311","411113","411311","113141","114131","311141","411131","211412","211214","211232","2331112"];
+
+function code128Svg(text, heightPx) {
+  var vals=[104]; // start code B
+  for (var i=0;i<text.length;i++){ var c=text.charCodeAt(i); if(c<32||c>126)c=63; vals.push(c-32); }
+  var sum=vals[0];
+  for (var j=1;j<vals.length;j++) sum+=j*vals[j];
+  vals.push(sum%103); // checksum
+  vals.push(106); // stop
+  var x=0, rects=[], mw=1.2;
+  vals.forEach(function(v){
+    var p=CODE128_WIDTHS[v], bar=true;
+    for(var k=0;k<p.length;k++){ var w=parseInt(p.charAt(k),10)*mw; if(bar)rects.push([x,w]); x+=w; bar=!bar; }
+  });
+  var svg='<svg width="'+Math.ceil(x)+'" height="'+heightPx+'" xmlns="http://www.w3.org/2000/svg">';
+  rects.forEach(function(r){ svg+='<rect x="'+r[0].toFixed(1)+'" y="0" width="'+r[1].toFixed(1)+'" height="'+heightPx+'" fill="#000"/>'; });
+  return svg+'</svg>';
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function labelHtml(s) {
+  var nameCls = s.name.length>32 ? 'lb-name xs' : (s.name.length>22 ? 'lb-name sm' : 'lb-name');
+  return '<div class="label">'
+    + '<div class="'+nameCls+'">'+escHtml(s.name)+'</div>'
+    + '<div class="lb-size">'+escHtml(s.size)+'</div>'
+    + '<div class="lb-bar">'+code128Svg(s.sku,24)+'</div>'
+    + '<div class="lb-sku">'+escHtml(s.sku)+'</div>'
+    + '</div>';
+}
+
+function buildSheets(labelList) {
+  var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows, sheets=[];
+  for (var i=0;i<labelList.length;i+=per) sheets.push(labelList.slice(i,i+per));
+  return sheets;
+}
+
+function sheetHtml(labels) {
+  var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows, cells='';
+  for (var i=0;i<per;i++) cells += i<labels.length ? labelHtml(labels[i]) : '<div class="label lb-blank"></div>';
+  var c=LABEL_CONFIG;
+  return '<div class="sheet" style="width:'+c.pageW+'in;height:'+c.pageH+'in;'
+    +'padding:'+c.marginTop+'in '+c.marginRight+'in '+c.marginBottom+'in '+c.marginLeft+'in;'
+    +'grid-template-columns:repeat('+c.cols+', '+c.labelW+'in);grid-auto-rows:'+c.labelH+'in;">'
+    +cells+'</div>';
+}
+
+var currentLabelSheets=[];
+
+function renderLabelSheets(sheets) {
+  currentLabelSheets=sheets;
+  var total=sheets.reduce(function(n,sh){return n+sh.length;},0);
+  document.getElementById('lb-preview').innerHTML=sheets.map(sheetHtml).join('');
+  document.getElementById('lb-summary').textContent=total+' labels · '+sheets.length+' sheet'+(sheets.length===1?'':'s');
+  document.getElementById('lb-print-btn').style.display='inline-block';
+  saveSession();
+}
+
+function genLabelsOrder() {
+  var num=document.getElementById('lb-order-sel').value;
+  if(!num||!orders[num]){showFlash('Pick an order first','warn');return;}
+  var items=orders[num].items.map(function(it){return {sku:it.sku,name:it.name,size:it.size,qty:it.qtyOrdered};});
+  items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+  var list=[];
+  items.forEach(function(it){ for(var i=0;i<it.qty;i++) list.push(it); });
+  if(!list.length){showFlash('That order has no items','warn');return;}
+  renderLabelSheets(buildSheets(list));
+}
+
+function genLabelsItem() {
+  var sku=document.getElementById('lb-item-sel').value;
+  var q=parseInt(document.getElementById('lb-item-qty').value,10)||0;
+  if(!sku||!SKU_MAP[sku]){showFlash('Pick an item first','warn');return;}
+  if(q<=0){showFlash('Quantity is 0 - nothing to print','warn');return;}
+  var s=SKU_MAP[sku], list=[];
+  for(var i=0;i<q;i++) list.push(s);
+  renderLabelSheets(buildSheets(list));
+}
+
+function genLabelsBatch(cat) {
+  var items=SKUS.filter(function(s){return s.cat===cat && prodCount[s.sku] && prodCount[s.sku].needed>0;});
+  if(!items.length){showFlash('No items with quantity needed in '+cat,'warn');return;}
+  items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+  var sheets=[];
+  items.forEach(function(s){
+    var list=[]; for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s);
+    sheets=sheets.concat(buildSheets(list));
+  });
+  renderLabelSheets(sheets);
+}
+
+function printLabels() {
+  if(!currentLabelSheets.length){showFlash('Generate labels first','warn');return;}
+  var w=window.open('','_blank');
+  if(!w){showFlash('Popup blocked - allow popups to print','err');return;}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cook It NJ Labels</title><style>'+LABEL_PRINT_CSS+'</style></head><body>'+currentLabelSheets.map(sheetHtml).join('')+'</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(function(){w.print();},250);
+}
+
+function lbItemQtyDefault() {
+  var sku=document.getElementById('lb-item-sel').value;
+  if(sku&&prodCount[sku]) document.getElementById('lb-item-qty').value=prodCount[sku].needed;
+}
+
+function renderLabelsPanel() {
+  var os=document.getElementById('lb-order-sel');
+  var nums=Object.keys(orders).sort();
+  os.innerHTML='<option value="">Pick an order...</option>'+nums.map(function(n){return '<option value="'+escHtml(n)+'">'+escHtml(n)+' - '+escHtml(orders[n].customer)+'</option>';}).join('');
+  var is=document.getElementById('lb-item-sel');
+  is.innerHTML=SKUS.slice().sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;}).map(function(s){return '<option value="'+s.sku+'">'+escHtml(s.name)+' ('+s.sku+')</option>';}).join('');
+  lbItemQtyDefault();
+  var cats=[]; SKUS.forEach(function(s){ if(cats.indexOf(s.cat)<0) cats.push(s.cat); });
+  cats.sort();
+  document.getElementById('lb-cats').innerHTML=cats.map(function(c){
+    return '<button class="csv-btn" style="margin:0 6px 6px 0" onclick="genLabelsBatch(\''+c.replace(/'/g,"\\'")+'\')">'+escHtml(c)+'</button>';
+  }).join('');
+}
+
 </script>
 </body>
 </html>
+
