@@ -295,14 +295,14 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div id="ready-orders-list"><div class="empty"><div class="empty-sub">No orders ready yet</div></div></div>
   </div>
   <!-- LABELS PANEL -->
-  <div class="panel" id="panel-labels">
+    <div class="panel" id="panel-labels">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print by Order</div>
+      <div id="lb-order-list" style="max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:4px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <select id="lb-order-sel" style="padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;min-width:220px;"></select>
         <button class="csv-btn" onclick="genLabelsOrder()">Generate</button>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Labels for every item in the order, each repeated by its quantity, alphabetical.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tick one order, several, or All - labels from every ticked order merge into one continuous run (each repeated by its quantity, alphabetical, zero wasted labels).</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print Item Sheet</div>
@@ -311,23 +311,27 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
         <input id="lb-item-qty" type="number" min="1" style="width:80px;padding:8px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
         <button class="csv-btn" onclick="genLabelsItem()">Generate</button>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One item, a full sheet, repeated by quantity (defaults to how many are needed).</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One item repeated to fill the sheet (defaults to a full sheet of 30 - change the number for a different run).</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Batch by Category</div>
       <div id="lb-cats"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One click prints every item in the category that has quantity needed - one sheet per item, alphabetical.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One click prints every item in the category that has quantity needed - items flow onto shared sheets, alphabetical, no wasted labels.</div>
     </div>
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
       <span id="lb-summary" style="font-size:12px;color:var(--muted);"></span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto;">
+        Start at label #
+        <input id="lb-start" type="number" min="1" max="30" value="1" style="width:64px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
+      </label>
     </div>
     <div id="lb-preview"></div>
   </div>
 </main>
 
 <script>
-console.log("Scanner v14 loaded");
+console.log("Scanner v15 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -1521,6 +1525,7 @@ var LABEL_CSS =
 ".lb-name{font-family:'DM Sans',sans-serif;font-weight:600;font-size:10px;line-height:1.15;color:#000;}\n" +
 ".lb-name.sm{font-size:8.5px;}\n" +
 ".lb-name.xs{font-size:7.5px;}\n" +
+".lb-brand{font-family:'DM Sans',sans-serif;font-weight:700;font-size:6.5px;letter-spacing:1px;text-transform:uppercase;color:#000;margin-bottom:1px;}\n" +
 ".lb-size{font-family:'DM Sans',sans-serif;font-weight:400;font-size:8px;color:#444;}\n" +
 ".lb-bar{line-height:0;margin:2px 0 1px;}\n" +
 ".lb-sku{font-family:'DM Mono',monospace;font-weight:500;font-size:8px;letter-spacing:0.5px;color:#000;}\n";
@@ -1556,6 +1561,7 @@ function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 function labelHtml(s) {
   var nameCls = s.name.length>32 ? 'lb-name xs' : (s.name.length>22 ? 'lb-name sm' : 'lb-name');
   return '<div class="label">'
+    + '<div class="lb-brand">🍳 Cook It NJ</div>'
     + '<div class="'+nameCls+'">'+escHtml(s.name)+'</div>'
     + '<div class="lb-size">'+escHtml(s.size)+'</div>'
     + '<div class="lb-bar">'+code128Svg(s.sku,24)+'</div>'
@@ -1563,15 +1569,32 @@ function labelHtml(s) {
     + '</div>';
 }
 
-function buildSheets(labelList) {
+// "Start at label #" - 1-based position of the first real label on the first sheet.
+// Positions before it are left blank so partially-used sheets can be reused.
+function lbStartAt() {
+  var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
+  var n=parseInt((document.getElementById('lb-start')||{}).value,10);
+  if(!n||n<1) n=1;
+  if(n>per) n=per;
+  return n;
+}
+
+// Packs labels consecutively onto shared sheets. Null entries render as blank
+// cells (used for the start-at offset on the first sheet). No forced page breaks:
+// labels flow one after another filling every sheet.
+function buildSheets(labelList, startAt) {
   var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows, sheets=[];
-  for (var i=0;i<labelList.length;i+=per) sheets.push(labelList.slice(i,i+per));
+  var padded=[];
+  var offset=(startAt||1)-1;
+  for (var k=0;k<offset;k++) padded.push(null);
+  padded=padded.concat(labelList);
+  for (var i=0;i<padded.length;i+=per) sheets.push(padded.slice(i,i+per));
   return sheets;
 }
 
 function sheetHtml(labels) {
   var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows, cells='';
-  for (var i=0;i<per;i++) cells += i<labels.length ? labelHtml(labels[i]) : '<div class="label lb-blank"></div>';
+  for (var i=0;i<per;i++) cells += (i<labels.length && labels[i]) ? labelHtml(labels[i]) : '<div class="label lb-blank"></div>';
   var c=LABEL_CONFIG;
   return '<div class="sheet" style="width:'+c.pageW+'in;height:'+c.pageH+'in;'
     +'padding:'+c.marginTop+'in '+c.marginRight+'in '+c.marginBottom+'in '+c.marginLeft+'in;'
@@ -1583,24 +1606,52 @@ var currentLabelSheets=[];
 
 function renderLabelSheets(sheets) {
   currentLabelSheets=sheets;
-  var total=sheets.reduce(function(n,sh){return n+sh.length;},0);
+  var total=sheets.reduce(function(n,sh){return n+sh.filter(function(l){return !!l;}).length;},0);
   document.getElementById('lb-preview').innerHTML=sheets.map(sheetHtml).join('');
   document.getElementById('lb-summary').textContent=total+' labels · '+sheets.length+' sheet'+(sheets.length===1?'':'s');
   document.getElementById('lb-print-btn').style.display='inline-block';
   saveSession();
 }
 
-function genLabelsOrder() {
-  var num=document.getElementById('lb-order-sel').value;
-  if(!num||!orders[num]){showFlash('Pick an order first','warn');return;}
-  var items=orders[num].items.map(function(it){return {sku:it.sku,name:it.name,size:it.size,qty:it.qtyOrdered};});
+function expandItems(items) {
+  // items: [{sku,name,size,qty}] -> flat label list, alphabetical by name
   items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
   var list=[];
   items.forEach(function(it){ for(var i=0;i<it.qty;i++) list.push(it); });
-  if(!list.length){showFlash('That order has no items','warn');return;}
-  renderLabelSheets(buildSheets(list));
+  return list;
 }
 
+// Print by order, multi-select: tick one order, several, or All - every ticked
+// order's labels merge into one continuous-filled job.
+function lbToggleAllOrders(on) {
+  var cbs=document.querySelectorAll('.lb-ord-cb');
+  for (var i=0;i<cbs.length;i++) cbs[i].checked=on;
+}
+
+function lbCheckedOrders() {
+  var allBox=document.getElementById('lb-ord-all');
+  if (allBox && allBox.checked) return Object.keys(orders);
+  var nums=[];
+  var cbs=document.querySelectorAll('.lb-ord-cb');
+  for (var i=0;i<cbs.length;i++) if (cbs[i].checked) nums.push(cbs[i].value);
+  return nums;
+}
+
+function genLabelsOrder() {
+  var nums=lbCheckedOrders();
+  if(!nums.length){showFlash('Tick at least one order','warn');return;}
+  var items=[];
+  nums.forEach(function(n){
+    if(!orders[n]) return;
+    orders[n].items.forEach(function(it){ items.push({sku:it.sku,name:it.name,size:it.size,qty:it.qtyOrdered}); });
+  });
+  var list=expandItems(items);
+  if(!list.length){showFlash('Those orders have no items','warn');return;}
+  renderLabelSheets(buildSheets(list, lbStartAt()));
+}
+
+// Full sheet of one item: same item repeated to fill the sheet (qty defaults
+// to a full sheet). Change the number for multiples or a partial run.
 function genLabelsItem() {
   var sku=document.getElementById('lb-item-sel').value;
   var q=parseInt(document.getElementById('lb-item-qty').value,10)||0;
@@ -1608,19 +1659,17 @@ function genLabelsItem() {
   if(q<=0){showFlash('Quantity is 0 - nothing to print','warn');return;}
   var s=SKU_MAP[sku], list=[];
   for(var i=0;i<q;i++) list.push(s);
-  renderLabelSheets(buildSheets(list));
+  renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
+// Batch by category: every item with quantity needed, continuous fill on shared sheets.
 function genLabelsBatch(cat) {
   var items=SKUS.filter(function(s){return s.cat===cat && prodCount[s.sku] && prodCount[s.sku].needed>0;});
   if(!items.length){showFlash('No items with quantity needed in '+cat,'warn');return;}
   items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
-  var sheets=[];
-  items.forEach(function(s){
-    var list=[]; for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s);
-    sheets=sheets.concat(buildSheets(list));
-  });
-  renderLabelSheets(sheets);
+  var list=[];
+  items.forEach(function(s){ for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s); });
+  renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
 function printLabels() {
@@ -1634,14 +1683,22 @@ function printLabels() {
 }
 
 function lbItemQtyDefault() {
-  var sku=document.getElementById('lb-item-sel').value;
-  if(sku&&prodCount[sku]) document.getElementById('lb-item-qty').value=prodCount[sku].needed;
+  // Full sheet is the deliberate single-item use; default the qty to a full sheet.
+  document.getElementById('lb-item-qty').value=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
 }
 
 function renderLabelsPanel() {
-  var os=document.getElementById('lb-order-sel');
+  var ol=document.getElementById('lb-order-list');
   var nums=Object.keys(orders).sort();
-  os.innerHTML='<option value="">Pick an order...</option>'+nums.map(function(n){return '<option value="'+escHtml(n)+'">'+escHtml(n)+' - '+escHtml(orders[n].customer)+'</option>';}).join('');
+  if(!nums.length){
+    ol.innerHTML='<span style="font-size:11px;color:var(--muted);">No orders loaded - load a Shopify CSV first.</span>';
+  } else {
+    var cbStyle='display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;';
+    ol.innerHTML='<label style="'+cbStyle+'font-weight:700;"><input type="checkbox" id="lb-ord-all" onchange="lbToggleAllOrders(this.checked)" /> All orders ('+nums.length+')</label>'
+      +nums.map(function(n){
+        return '<label style="'+cbStyle+'"><input type="checkbox" class="lb-ord-cb" value="'+escHtml(n)+'" /> '+escHtml(n)+' - '+escHtml(orders[n].customer)+'</label>';
+      }).join('');
+  }
   var is=document.getElementById('lb-item-sel');
   is.innerHTML=SKUS.slice().sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;}).map(function(s){return '<option value="'+s.sku+'">'+escHtml(s.name)+' ('+s.sku+')</option>';}).join('');
   lbItemQtyDefault();
@@ -1650,6 +1707,8 @@ function renderLabelsPanel() {
   document.getElementById('lb-cats').innerHTML=cats.map(function(c){
     return '<button class="csv-btn" style="margin:0 6px 6px 0" onclick="genLabelsBatch(\''+c.replace(/'/g,"\\'")+'\')">'+escHtml(c)+'</button>';
   }).join('');
+  var st=document.getElementById('lb-start');
+  if(st) st.max=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
 }
 
 </script>
