@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v20 - Extras printing: pick which extras to print, remember printed ones, reprint prompt -->
+<!-- Scanner v21 - Fix: build Airtable orders map on every boot so per-order Status/Items Ready pushes fire (were silently skipped unless CSV freshly imported) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -528,6 +528,9 @@ function atInit() {
       var missing = SKUS.filter(function(s){ return !atRecordIds[s.sku]; });
       if (missing.length === 0) {
         updateAtStatus('✅ Airtable connected', 'var(--green)');
+        // Boot fix: populate atOrderRecordIds + push current order statuses on
+        // every load, not just after CSV import or SKU-table changes.
+        if (Object.keys(orders).length > 0) atSyncOrders();
         return;
       }
 
