@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v14 - label printing added -->
+<!-- Scanner v19 - adjust buttons on Done counts + Extras tab + print extras labels -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -102,6 +102,17 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .cbox-lbl{font-size:8px;text-transform:uppercase;letter-spacing:0.6px;color:var(--dim);}
 .cbox-num{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;margin-top:1px;}
 .cbox-num.g{color:var(--green);}.cbox-num.o{color:var(--orange);}.cbox-num.d{color:var(--dim);}
+.cbox-done{display:flex;align-items:center;justify-content:center;gap:5px;margin-top:2px;}
+.cbox-done .cbox-num{margin-top:0;min-width:24px;}
+.adj-btn{width:34px;height:34px;flex:0 0 34px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);font-family:'DM Mono',monospace;font-size:17px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.adj-btn:active{background:var(--surface2);}
+.adj-btn.plus{color:var(--green);border-color:rgba(24,168,90,0.35);}
+.adj-btn.minus{color:var(--orange);border-color:rgba(217,119,6,0.30);}
+.extras-summary{font-size:13px;color:var(--muted);margin-bottom:14px;}
+.extra-row{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:14px 18px;margin-bottom:10px;}
+.extra-over{font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--green);min-width:66px;text-align:center;background:var(--green-dim);border-radius:var(--r-sm);padding:8px 10px;}
+.extra-name{font-weight:600;font-size:14px;}
+.extra-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:2px;}
 .order-load-bar{display:flex;gap:10px;margin-bottom:12px;}
 .order-hdr{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:14px;display:none;}
 .order-hdr.vis{display:block;}
@@ -171,6 +182,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <button class="pill" id="pill-pack" onclick="setMode('pack')">📦 Pack & Verify</button>
       <button class="pill" id="pill-cook" onclick="setMode('cook')">🎯 Cook Next</button>
       <button class="pill" id="pill-labels" onclick="setMode('labels')">🏷 Labels</button>
+      <button class="pill" id="pill-extras" onclick="setMode('extras')">✚ Extras</button>
     </div>
     <button class="clear-btn" onclick="clearEverything()">🗑 Clear All</button>
   </div>
@@ -318,6 +330,13 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <div id="lb-cats"></div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tap one or more categories to combine them into one run - labels flow onto shared sheets, no wasted labels.</div>
     </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print Extras</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="csv-btn" onclick="genLabelsExtras()">Generate</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One label per extra unit - every item where Done is more than Needed, merged into one continuous run.</div>
+    </div>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
       <span id="lb-summary" style="font-size:12px;color:var(--muted);"></span>
@@ -332,10 +351,18 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div id="lb-fillhint" style="display:none;background:#fff7e6;border:1px solid #f0c36d;color:#7a5a00;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:14px;"></div>
     <div id="lb-preview"></div>
   </div>
+
+  <!-- EXTRAS PANEL -->
+  <div class="panel" id="panel-extras">
+    <div class="scan-bar">
+      <div class="scan-label">Extras — items made beyond what was needed</div>
+    </div>
+    <div id="extras-list"></div>
+  </div>
 </main>
 
 <script>
-console.log("Scanner v18 loaded");
+console.log("Scanner v19 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -1069,11 +1096,14 @@ function setMode(m) {
   document.getElementById('panel-pack').classList.toggle('on',m==='pack');
   document.getElementById('panel-cook').classList.toggle('on',m==='cook');
   document.getElementById('panel-labels').classList.toggle('on',m==='labels');
+  document.getElementById('panel-extras').classList.toggle('on',m==='extras');
   document.getElementById('pill-prod').className='pill'+(m==='prod'?' p-active':'');
   document.getElementById('pill-pack').className='pill'+(m==='pack'?' k-active':'');
   document.getElementById('pill-cook').className='pill'+(m==='cook'?' p-active':'');
   document.getElementById('pill-labels').className='pill'+(m==='labels'?' k-active':'');
+  document.getElementById('pill-extras').className='pill'+(m==='extras'?' p-active':'');
   if(m==='labels') renderLabelsPanel();
+  if(m==='extras') renderExtras();
   if(m==='prod') setTimeout(function(){document.getElementById('prod-input').focus();},50);
   if(m==='pack') setTimeout(function(){document.getElementById('order-input').focus();},50);
   if(m==='cook') renderCookNext();
@@ -1115,6 +1145,25 @@ function undoLastScan() {
   if (mode === 'cook') renderCookNext();
 }
 
+// Manual adjust: fix mis-scans from the card itself. Never drops below 0.
+function adjustCount(sku, delta) {
+  var item = SKU_MAP[sku];
+  if (!item || !prodCount[sku]) return;
+  var cur = prodCount[sku].done;
+  var next = Math.max(0, cur + delta);
+  if (next === cur) { showFlash(item.name + ' is already at 0','warn'); return; }
+  prodCount[sku].done = next;
+  scanCounts[sku] = next;
+  if (delta > 0) prodHistory.unshift({t:now(),sku:sku,name:item.name,count:next});
+  saveSession();
+  atPushScan(sku);
+  setTimeout(atUpdateOrderStatuses, 1500);
+  showFlash(item.name + ' - adjusted to ' + next + ' made', delta>0?'ok':'warn');
+  renderProdGrid(); updateProdStats(); renderProdHist();
+  if (mode === 'cook') renderCookNext();
+  if (mode === 'extras') renderExtras();
+}
+
 function prodScan() {
   var inp=document.getElementById('prod-input');
   var sku=inp.value.trim().toUpperCase();
@@ -1148,7 +1197,7 @@ function renderProdGrid() {
     cats[cat].forEach(function(item){
       var needed=prodCount[item.sku].needed,done=prodCount[item.sku].done;
       var isDone=needed>0&&done>=needed,isPartial=done>0&&!isDone;
-      grid.innerHTML+='<div class="pcard '+(isDone?'is-done':isPartial?'is-partial':'')+'"><div class="pcard-sku">'+item.sku+'</div><div class="pcard-name">'+item.name+'</div><div class="pcard-size">'+item.size+'</div><div class="pcard-counts"><div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num '+(needed===0?'d':'')+'">'+( needed||'—')+'</div></div><div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-num '+(done===0?'d':isDone?'g':'o')+'">'+done+'</div></div></div></div>';
+      grid.innerHTML+='<div class="pcard '+(isDone?'is-done':isPartial?'is-partial':'')+'"><div class="pcard-sku">'+item.sku+'</div><div class="pcard-name">'+item.name+'</div><div class="pcard-size">'+item.size+'</div><div class="pcard-counts"><div class="cbox"><div class="cbox-lbl">Needed</div><div class="cbox-num '+(needed===0?'d':'')+'">'+( needed||'—')+'</div></div><div class="cbox"><div class="cbox-lbl">Done</div><div class="cbox-done"><button class="adj-btn minus" onclick="adjustCount(\''+item.sku+'\',-1)" aria-label="Remove one">−</button><div class="cbox-num '+(done===0?'d':isDone?'g':'o')+'">'+done+'</div><button class="adj-btn plus" onclick="adjustCount(\''+item.sku+'\',1)" aria-label="Add one">+</button></div></div></div></div>';
     });
     container.appendChild(grid);
   }
@@ -1175,6 +1224,29 @@ function renderProdHist() {
   el.innerHTML=prodHistory.slice(0,20).map(function(h){
     return '<div class="hist-row"><span class="hist-time">'+h.t+'</span><span class="hist-sku g">'+h.sku+'</span><span>'+h.name+' — <strong>#'+h.count+'</strong> made</span></div>';
   }).join('');
+}
+
+// ── EXTRAS ──────────────────────────────────────────────
+// Derived view: every SKU where done > needed, biggest overage first.
+function renderExtras() {
+  var el = document.getElementById('extras-list');
+  var extras = [];
+  SKUS.forEach(function(s){
+    var c = prodCount[s.sku];
+    if (c.done > c.needed) extras.push({sku:s.sku,name:s.name,cat:s.cat,needed:c.needed,done:c.done,over:c.done-c.needed});
+  });
+  extras.sort(function(a,b){ return b.over-a.over || (a.name<b.name?-1:a.name>b.name?1:0); });
+  if (!extras.length) {
+    el.innerHTML='<div class="empty"><div class="empty-sub">No extras yet.</div></div>';
+    return;
+  }
+  var total = extras.reduce(function(s,e){return s+e.over;},0);
+  el.innerHTML = '<div class="extras-summary">'+extras.length+' item'+(extras.length===1?'':'s')+' over · <strong>'+total+' extra unit'+(total===1?'':'s')+'</strong></div>'
+    + extras.map(function(e){
+        return '<div class="extra-row"><div class="extra-over">+'+e.over+'</div>'
+          + '<div><div class="extra-name">'+escHtml(e.name)+'</div>'
+          + '<div class="extra-sub">'+escHtml(e.sku)+' · '+escHtml(e.cat)+' · '+e.done+' made of '+e.needed+' needed</div></div></div>';
+      }).join('');
 }
 
 // ── PACK ──────────────────────────────────────────────────
@@ -1715,6 +1787,19 @@ function genLabelsBatch() {
     items.forEach(function(s){ for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s); });
   });
   if(!list.length){showFlash('No items with quantity needed in the selected categories','warn');return;}
+  renderLabelSheets(buildSheets(list, lbStartAt()));
+}
+
+// Print Extras: one label per extra unit (done - needed) across all items,
+// alphabetical, continuous-filled onto shared sheets like the other modes.
+function genLabelsExtras() {
+  var items=[];
+  SKUS.forEach(function(s){
+    var c=prodCount[s.sku];
+    if(c && c.done>c.needed) items.push({sku:s.sku,name:s.name,size:s.size,qty:c.done-c.needed});
+  });
+  var list=expandItems(items);
+  if(!list.length){showFlash('No extras to print - nothing is over its needed count','warn');return;}
   renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
