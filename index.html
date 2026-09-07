@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v19 - adjust buttons on Done counts + Extras tab + print extras labels -->
+<!-- Scanner v20 - Extras printing: pick which extras to print, remember printed ones, reprint prompt -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -332,10 +332,11 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Print Extras</div>
+      <div id="lb-extras-list" style="max-height:220px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:2px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button class="csv-btn" onclick="genLabelsExtras()">Generate</button>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One label per extra unit - every item where Done is more than Needed, merged into one continuous run.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tick the extras to print - new ones come pre-ticked, already-printed ones show a checkmark and ask before reprinting. One label per extra unit, merged into one continuous run.</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
@@ -362,7 +363,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 </main>
 
 <script>
-console.log("Scanner v19 loaded");
+console.log("Scanner v20 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -760,6 +761,7 @@ var pendingUnmatched = [];
 var mode = 'prod';
 var prodHistory = [];
 var packHistory = [];
+var extrasPrinted = {}; // sku -> units of extras labels already printed
 
 // ── PERSISTENCE ──────────────────────────────────────────
 function saveSession() {
@@ -769,6 +771,7 @@ function saveSession() {
       scanCounts: scanCounts,
       prodHistory: prodHistory.slice(0,50),
       packHistory: packHistory.slice(0,50),
+      extrasPrinted: extrasPrinted,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -786,6 +789,7 @@ function loadSession() {
     scanCounts = data.scanCounts || {};
     prodHistory = data.prodHistory || [];
     packHistory = data.packHistory || [];
+    extrasPrinted = data.extrasPrinted || {};
 
     // Restore scan counts into prodCount
     Object.keys(scanCounts).forEach(function(sku){
@@ -821,7 +825,7 @@ function clearEverything() {
   if (!confirmed) return;
   localStorage.removeItem(STORE_KEY);
   orders = {}; scanCounts = {}; currentOrder = null;
-  pendingUnmatched = []; prodHistory = []; packHistory = [];
+  pendingUnmatched = []; prodHistory = []; packHistory = []; extrasPrinted = {};
   SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
   atClearAll();
   atClearOrders();
@@ -1734,6 +1738,7 @@ function lbCheckedOrders() {
 }
 
 function genLabelsOrder() {
+  pendingExtrasPrint=null;
   var nums=lbCheckedOrders();
   if(!nums.length){showFlash('Tick at least one order','warn');return;}
   var items=[];
@@ -1749,6 +1754,7 @@ function genLabelsOrder() {
 // Full sheet of one item: same item repeated to fill the sheet (qty defaults
 // to a full sheet). Change the number for multiples or a partial run.
 function genLabelsItem() {
+  pendingExtrasPrint=null;
   var sku=document.getElementById('lb-item-sel').value;
   var q=parseInt(document.getElementById('lb-item-qty').value,10)||0;
   if(!sku||!SKU_MAP[sku]){showFlash('Pick an item first','warn');return;}
@@ -1779,6 +1785,7 @@ function renderCatButtons() {
   }).join('');
 }
 function genLabelsBatch() {
+  pendingExtrasPrint=null;
   if(!lbSelCats.length){ renderLabelSheets([]); return; }
   var list=[];
   lbSelCats.forEach(function(cat){
@@ -1790,17 +1797,72 @@ function genLabelsBatch() {
   renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
-// Print Extras: one label per extra unit (done - needed) across all items,
-// alphabetical, continuous-filled onto shared sheets like the other modes.
-function genLabelsExtras() {
+// Print Extras: tick which extras to print (new ones pre-ticked, already-printed
+// ones marked and prompted before reprinting). One label per extra unit of every
+// ticked item, alphabetical, continuous-filled onto shared sheets like the other modes.
+var pendingExtrasPrint=null; // {sku:qty} from the last extras Generate, marked printed on Print
+
+function currentExtras() {
   var items=[];
   SKUS.forEach(function(s){
     var c=prodCount[s.sku];
     if(c && c.done>c.needed) items.push({sku:s.sku,name:s.name,size:s.size,qty:c.done-c.needed});
   });
+  items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+  return items;
+}
+
+function renderExtrasPicker() {
+  var el=document.getElementById('lb-extras-list');
+  if(!el) return;
+  var items=currentExtras();
+  if(!items.length){
+    el.innerHTML='<span style="font-size:11px;color:var(--muted);">No extras yet - nothing is over its needed count.</span>';
+    return;
+  }
+  var rowStyle='display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;';
+  el.innerHTML='<label style="'+rowStyle+'font-weight:700;"><input type="checkbox" id="lb-ext-all" onchange="lbToggleAllExtras(this.checked)" /> All extras ('+items.length+' item'+(items.length===1?'':'s')+')</label>'
+    + items.map(function(it){
+        var printed=(extrasPrinted[it.sku]||0)>0;
+        var style=rowStyle+(printed?'opacity:0.55;':'');
+        var badge=printed?' <span style="font-size:10px;color:var(--muted);">&#10003; printed '+extrasPrinted[it.sku]+'</span>':'';
+        return '<label style="'+style+'"><input type="checkbox" class="lb-ext-cb" value="'+escHtml(it.sku)+'"'+(printed?'':' checked')+' /> +'+it.qty+' '+escHtml(it.name)+badge+'</label>';
+      }).join('');
+}
+
+function lbToggleAllExtras(on) {
+  var cbs=document.querySelectorAll('.lb-ext-cb');
+  for (var i=0;i<cbs.length;i++) cbs[i].checked=on;
+}
+
+function markExtrasPrinted() {
+  if(!pendingExtrasPrint) return;
+  Object.keys(pendingExtrasPrint).forEach(function(sku){
+    extrasPrinted[sku]=(extrasPrinted[sku]||0)+pendingExtrasPrint[sku];
+  });
+  pendingExtrasPrint=null;
+  saveSession();
+  renderExtrasPicker();
+}
+
+function genLabelsExtras() {
+  var all=currentExtras();
+  if(!all.length){showFlash('No extras to print - nothing is over its needed count','warn');return;}
+  var cbs=document.querySelectorAll('.lb-ext-cb');
+  var picked={};
+  for (var i=0;i<cbs.length;i++) if(cbs[i].checked) picked[cbs[i].value]=true;
+  var items=all.filter(function(it){return cbs.length ? picked[it.sku] : true;});
+  if(!items.length){showFlash('Tick at least one extra to print','warn');return;}
+  var reprint=items.filter(function(it){return (extrasPrinted[it.sku]||0)>0;});
+  if(reprint.length){
+    var names=reprint.map(function(it){return '- '+it.name;}).join('\n');
+    if(!confirm(reprint.length+' selected item'+(reprint.length===1?' was':'s were')+' already printed - reprint?\n\n'+names)) return;
+  }
   var list=expandItems(items);
-  if(!list.length){showFlash('No extras to print - nothing is over its needed count','warn');return;}
+  if(!list.length){showFlash('Nothing selected to print','warn');return;}
   renderLabelSheets(buildSheets(list, lbStartAt()));
+  pendingExtrasPrint={};
+  items.forEach(function(it){pendingExtrasPrint[it.sku]=it.qty;});
 }
 
 function printLabels() {
@@ -1814,7 +1876,7 @@ function printLabels() {
   (function waitImgs(){
     var imgs=w.document.images, ready=true;
     for(var k=0;k<imgs.length;k++){ if(!imgs[k].complete){ ready=false; break; } }
-    if(ready||tries>40){ w.print(); return; }
+    if(ready||tries>40){ w.print(); markExtrasPrinted(); return; }
     tries++; setTimeout(waitImgs,100);
   })();
 }
@@ -1840,6 +1902,7 @@ function renderLabelsPanel() {
   is.innerHTML=SKUS.slice().sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;}).map(function(s){return '<option value="'+s.sku+'">'+escHtml(s.name)+' ('+s.sku+')</option>';}).join('');
   lbItemQtyDefault();
   renderCatButtons();
+  renderExtrasPicker();
   var st=document.getElementById('lb-start');
   if(st) st.max=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
 }
@@ -1847,4 +1910,5 @@ function renderLabelsPanel() {
 </script>
 </body>
 </html>
+
 
