@@ -316,7 +316,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Batch by Category</div>
       <div id="lb-cats"></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">One click prints every item in the category that has quantity needed - items flow onto shared sheets, alphabetical, no wasted labels.</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tap one or more categories to combine them into one run - labels flow onto shared sheets, no wasted labels.</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
@@ -329,12 +329,13 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
         <input id="lb-mono" type="checkbox"> Black &amp; white logo
       </label>
     </div>
+    <div id="lb-fillhint" style="display:none;background:#fff7e6;border:1px solid #f0c36d;color:#7a5a00;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:14px;"></div>
     <div id="lb-preview"></div>
   </div>
 </main>
 
 <script>
-console.log("Scanner v17 loaded");
+console.log("Scanner v18 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -1618,6 +1619,21 @@ function renderLabelSheets(sheets) {
   document.getElementById('lb-preview').innerHTML=sheets.map(sheetHtml).join('');
   document.getElementById('lb-summary').textContent=total+' labels · '+sheets.length+' sheet'+(sheets.length===1?'':'s');
   document.getElementById('lb-print-btn').style.display='inline-block';
+  var hint=document.getElementById('lb-fillhint');
+  if(hint){
+    var left=0;
+    if(sheets.length){
+      var last=sheets[sheets.length-1], lastIdx=-1;
+      for(var li=last.length-1;li>=0;li--){ if(last[li]){lastIdx=li;break;} }
+      if(lastIdx>=0) left=LABEL_CONFIG.cols*LABEL_CONFIG.rows-1-lastIdx;
+    }
+    if(left>0){
+      hint.style.display='block';
+      hint.textContent='Add more labels? Sheet '+sheets.length+' has '+left+' slot'+(left===1?'':'s')+' left - tap another category above to fill '+(left===1?'it':'them')+', or Print as-is.';
+    } else {
+      hint.style.display='none';
+    }
+  }
   saveSession();
 }
 
@@ -1670,13 +1686,35 @@ function genLabelsItem() {
   renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
-// Batch by category: every item with quantity needed, continuous fill on shared sheets.
-function genLabelsBatch(cat) {
-  var items=SKUS.filter(function(s){return s.cat===cat && prodCount[s.sku] && prodCount[s.sku].needed>0;});
-  if(!items.length){showFlash('No items with quantity needed in '+cat,'warn');return;}
-  items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+// Batch by category, multi-select: tap categories to combine them. Every item
+// with quantity needed in ANY tapped category merges into one continuous-filled
+// job, in the order the categories were tapped. Tap a category again to remove it.
+var lbSelCats=[];
+function lbToggleCat(cat) {
+  var i=lbSelCats.indexOf(cat);
+  if(i>=0) lbSelCats.splice(i,1); else lbSelCats.push(cat);
+  renderCatButtons();
+  genLabelsBatch();
+}
+function renderCatButtons() {
+  var el=document.getElementById('lb-cats');
+  if(!el) return;
+  var cats=[]; SKUS.forEach(function(s){ if(cats.indexOf(s.cat)<0) cats.push(s.cat); });
+  cats.sort();
+  el.innerHTML=cats.map(function(c){
+    var on=lbSelCats.indexOf(c)>=0;
+    return '<button class="csv-btn" style="margin:0 6px 6px 0;'+(on?'background:var(--green);border-color:var(--green);color:#fff;':'')+'" onclick="lbToggleCat(\''+c.replace(/'/g,"\\'")+'\')">'+escHtml(c)+(on?' \u2713':'')+'</button>';
+  }).join('');
+}
+function genLabelsBatch() {
+  if(!lbSelCats.length){ renderLabelSheets([]); return; }
   var list=[];
-  items.forEach(function(s){ for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s); });
+  lbSelCats.forEach(function(cat){
+    var items=SKUS.filter(function(s){return s.cat===cat && prodCount[s.sku] && prodCount[s.sku].needed>0;});
+    items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+    items.forEach(function(s){ for(var i=0;i<prodCount[s.sku].needed;i++) list.push(s); });
+  });
+  if(!list.length){showFlash('No items with quantity needed in the selected categories','warn');return;}
   renderLabelSheets(buildSheets(list, lbStartAt()));
 }
 
@@ -1716,11 +1754,7 @@ function renderLabelsPanel() {
   var is=document.getElementById('lb-item-sel');
   is.innerHTML=SKUS.slice().sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;}).map(function(s){return '<option value="'+s.sku+'">'+escHtml(s.name)+' ('+s.sku+')</option>';}).join('');
   lbItemQtyDefault();
-  var cats=[]; SKUS.forEach(function(s){ if(cats.indexOf(s.cat)<0) cats.push(s.cat); });
-  cats.sort();
-  document.getElementById('lb-cats').innerHTML=cats.map(function(c){
-    return '<button class="csv-btn" style="margin:0 6px 6px 0" onclick="genLabelsBatch(\''+c.replace(/'/g,"\\'")+'\')">'+escHtml(c)+'</button>';
-  }).join('');
+  renderCatButtons();
   var st=document.getElementById('lb-start');
   if(st) st.max=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
 }
