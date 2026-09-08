@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v21 - Fix: build Airtable orders map on every boot so per-order Status/Items Ready pushes fire (were silently skipped unless CSV freshly imported) -->
+<!-- Scanner v22 - Airtable sync now routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -476,16 +476,16 @@ SKUS.forEach(function(s){SKU_MAP[s.sku]=s; prodCount[s.sku]={needed:0,done:0};})
 const STORE_KEY = 'cookit_fall2026_v1';
 
 // ── AIRTABLE CONFIG ───────────────────────────────────────
-const AT_TOKEN   = 'patoGk2fgt1hSLoT8.23a149b3e4027bab10fd311'+'fb4697d3029c295ac1b6894c381803551c6bcf687';
-const AT_BASE    = 'app8Y8d551EjxrDpD';
+// Token now lives server-side in the cookit-airtable-proxy Cloudflare Worker.
+const AT_PROXY   = 'https://cookit-airtable-proxy.mschwartz1128.workers.dev/v0/app8Y8d551EjxrDpD';
 const AT_TABLE   = 'tblY0pDg1tLy64AzA';
 const AT_ORDERS_TABLE = 'tblAOjeSkgCtoIS3B';
-const AT_ORDERS_URL = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_ORDERS_TABLE;
+const AT_ORDERS_URL = AT_PROXY + '/' + AT_ORDERS_TABLE;
 
 // Map orderNum -> Airtable record ID
 var atOrderRecordIds = {};
-const AT_URL     = 'https://api.airtable.com/v0/' + AT_BASE + '/' + AT_TABLE;
-const AT_HEADERS = {'Authorization':'Bearer '+AT_TOKEN,'Content-Type':'application/json'};
+const AT_URL     = AT_PROXY + '/' + AT_TABLE;
+const AT_HEADERS = {'Content-Type':'application/json'};
 
 // Map SKU -> Airtable record ID (populated on first sync)
 var atRecordIds = {};
@@ -1942,5 +1942,6 @@ function renderLabelsPanel() {
 </script>
 </body>
 </html>
+
 
 
