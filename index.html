@@ -300,7 +300,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
   <div class="panel" id="panel-cook">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:18px;">
       <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Cook Next — Priority List</div>
-      <div style="font-size:12px;color:var(--muted);">Items sorted by how many orders they are blocking. Cook the top items first to get the most orders ready.</div>
+      <div style="font-size:12px;color:var(--muted);">Items are sorted by how many orders cooking them would FINISH. Cook the top items first to free up the most orders.</div>
     </div>
     <div id="cook-next-list"></div>
     <div class="sec">Orders Ready to Pack</div>
@@ -1519,14 +1519,40 @@ function renderCookNext() {
     });
   });
 
+  // Count, for each SKU, how many orders cooking that SKU would COMPLETE (free up).
+  // An order counts toward a SKU when that SKU is the order's ONLY remaining short
+  // item - everything else the order needs is already covered by the FCFS allocation
+  // of cooked stock. This is the primary ranking: finishing orders frees freezer
+  // space, so an item that is the last missing piece of several orders outranks an
+  // item merely needed by many orders that are nowhere close.
+  var skuCompleteCount = {};
+  SKUS.forEach(function(s) { skuCompleteCount[s.sku] = 0; });
+  Object.keys(orders).forEach(function(num) {
+    var order = orders[num];
+    if (order.shipped || order.packed) return;
+    var f = fifo[num];
+    if (f.allReady) return; // already ready
+
+    var shortSkus = [];
+    order.items.forEach(function(item) {
+      var allocated = f.allocation[item.sku] || 0;
+      if (allocated < item.qtyOrdered) shortSkus.push(item.sku);
+    });
+    if (shortSkus.length === 1) skuCompleteCount[shortSkus[0]]++;
+  });
+
   // Build cook list - only items still needed
   var cookList = SKUS.filter(function(s) {
     return skuStillNeed[s.sku] > 0;
   }).map(function(s) {
     return {sku:s.sku, name:s.name, size:s.size, cat:s.cat,
       stillNeed:skuStillNeed[s.sku], blocked:skuBlockCount[s.sku],
+      completes:skuCompleteCount[s.sku],
       done:prodCount[s.sku].done, needed:prodCount[s.sku].needed};
   }).sort(function(a,b) {
+    // Completion-first: rank by orders this item would FREE, then orders blocked,
+    // then raw quantity still needed.
+    if (b.completes !== a.completes) return b.completes - a.completes;
     if (b.blocked !== a.blocked) return b.blocked - a.blocked;
     return b.stillNeed - a.stillNeed;
   });
@@ -1547,10 +1573,13 @@ function renderCookNext() {
     cookEl.innerHTML = '<div class="empty"><div class="empty-sub">All items cooked! Check Ready Orders below.</div></div>';
   } else {
     cookEl.innerHTML = cookList.slice(0,20).map(function(item, idx) {
-      var urgency = item.blocked >= 3 ? 'urgent' : item.blocked >= 1 ? 'medium' : 'low';
+      var urgency = item.completes >= 3 ? 'urgent' : item.completes >= 1 ? 'medium' : 'low';
       var rank = idx + 1;
+      var badgeLbl = item.completes > 0
+        ? 'frees ' + item.completes + (item.completes === 1 ? ' order' : ' orders')
+        : item.blocked + (item.blocked === 1 ? ' order' : ' orders') + ' waiting';
       return '<div class="cook-row '+urgency+'">'
-        + '<div class="cook-badge '+urgency+'"><div class="cook-badge-num">#'+rank+'</div><div class="cook-badge-lbl">'+item.blocked+' orders</div></div>'
+        + '<div class="cook-badge '+urgency+'"><div class="cook-badge-num">#'+rank+'</div><div class="cook-badge-lbl">'+badgeLbl+'</div></div>'
         + '<div class="cook-info"><div class="cook-name">'+item.name+'</div>'
         + '<div class="cook-meta">'+item.size+' · '+item.sku+' · '+item.cat+'</div></div>'
         + '<div class="cook-still">'+item.stillNeed+' more needed</div>'
