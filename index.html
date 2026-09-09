@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -337,6 +337,18 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
         <button class="csv-btn" onclick="genLabelsExtras()">Generate</button>
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tick the extras to print - new ones come pre-ticked, already-printed ones show a checkmark and ask before reprinting. One label per extra unit, merged into one continuous run.</div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Delivery Labels - 4 per sheet (plain letter paper)</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);">Delivery date
+          <input id="dl-date" type="date" style="padding:7px 10px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
+        </label>
+        <button class="csv-btn" onclick="fetchDeliveryOrders(true)">↻ Refresh orders</button>
+        <button class="csv-btn" onclick="genDeliveryLabels()">Generate</button>
+      </div>
+      <div id="dl-order-list" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">Tick the orders going out and set the box count for each - every box gets its own label marked "Box 1 of 3", "Box 2 of 3" etc. Prints 4 labels per letter sheet with cut guides. Orders load read-only from Airtable.</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="csv-btn" id="lb-print-btn" style="display:none;border-color:var(--green);color:var(--green);font-size:14px;padding:10px 24px;" onclick="printLabels()">🖨 Print</button>
@@ -1982,6 +1994,160 @@ function printLabels() {
   })();
 }
 
+
+// ── DELIVERY LABELS ─────────────────────────────────────
+// Shipping-style box labels, 4 per letter sheet (2x2). Read-only Airtable fetch.
+var DELIVERY_CONFIG = {cols:2, rows:2, cellW:4.25, cellH:5.5, pageW:8.5, pageH:11};
+
+var DELIVERY_CSS =
+"@page{size:letter;margin:0;}\n" +
+".dsheet{display:grid;gap:0;margin:0 auto 18px;background:#fff;box-sizing:border-box;overflow:hidden;}\n" +
+".dlabel{box-sizing:border-box;padding:0.28in 0.3in;display:flex;flex-direction:column;align-items:center;text-align:center;border:1.5px solid #004938;margin:0.14in;border-radius:6px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;}\n" +
+".dlb-blank{visibility:hidden;}\n" +
+".dlb-logo{line-height:0;margin-bottom:6px;}\n" +
+".dlb-logo img{width:1.5in;display:block;}\n" +
+".dlb-tag{font-family:'DM Sans',sans-serif;font-weight:700;font-size:11px;letter-spacing:3.5px;color:#004938;border-top:1px solid #004938;border-bottom:1px solid #004938;padding:3px 0;width:100%;margin-bottom:10px;}\n" +
+".dlb-kicker{font-family:'DM Sans',sans-serif;font-weight:700;font-size:8.5px;letter-spacing:1.6px;color:#777;text-transform:uppercase;margin-bottom:2px;}\n" +
+".dlb-name{font-family:'DM Sans',sans-serif;font-weight:700;font-size:26px;line-height:1.1;color:#000;margin-bottom:10px;}\n" +
+".dlb-name.sm{font-size:20px;}\n" +
+".dlb-name.xs{font-size:16px;}\n" +
+".dlb-ord{font-family:'DM Mono',monospace;font-weight:500;font-size:13px;letter-spacing:1px;color:#000;margin-top:3px;margin-bottom:10px;}\n" +
+".dlb-date{font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;color:#000;margin-bottom:12px;}\n" +
+".dlb-box{font-family:'DM Sans',sans-serif;font-weight:700;font-size:24px;letter-spacing:1px;color:#004938;margin-bottom:6px;}\n" +
+".dlb-checks{display:flex;gap:7px;justify-content:center;margin-bottom:10px;}\n" +
+".dlb-chk{width:17px;height:17px;border:2px solid #004938;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;line-height:1;}\n" +
+".dlb-chk.on{background:#004938;}\n" +
+".dlb-foot{margin-top:auto;font-family:'DM Sans',sans-serif;font-size:9.5px;color:#666;letter-spacing:0.4px;}\n";
+
+var DELIVERY_PRINT_CSS = DELIVERY_CSS +
+"body{margin:0;}\n" +
+".dsheet{margin:0;page-break-after:always;}\n";
+
+(function(){ var st=document.createElement('style'); st.textContent=DELIVERY_CSS + ".dsheet{border:1px dashed #d0d7e6;}.dlabel{position:relative;}"; document.head.appendChild(st); })();
+
+var dlOrders = []; // {num, customer} straight from Airtable, read-only
+var currentDeliverySheets = [];
+
+function dlFmtDate(iso) {
+  if(!iso) return '';
+  var d = new Date(iso + 'T12:00:00');
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return days[d.getDay()] + ', ' + months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+}
+
+function fetchDeliveryOrders(manual) {
+  var el = document.getElementById('dl-order-list');
+  if(!el) return;
+  el.innerHTML = '<span style="font-size:11px;color:var(--muted);">Loading orders from Airtable...</span>';
+  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data.records){ el.innerHTML = '<span style="font-size:11px;color:var(--orange);">Could not load orders from Airtable.</span>'; return; }
+      dlOrders = data.records
+        .filter(function(rec){ return rec.fields && rec.fields['Order Number']; })
+        .map(function(rec){ return {num: String(rec.fields['Order Number']), customer: rec.fields['Customer'] || 'Unknown'}; })
+        .sort(function(a,b){ return a.num < b.num ? -1 : a.num > b.num ? 1 : 0; });
+      renderDeliveryOrderList();
+      if(manual) showFlash(dlOrders.length + ' orders loaded from Airtable','ok');
+    })
+    .catch(function(){ el.innerHTML = '<span style="font-size:11px;color:var(--orange);">Could not reach Airtable.</span>'; });
+}
+
+function renderDeliveryOrderList() {
+  var el = document.getElementById('dl-order-list');
+  if(!dlOrders.length){
+    el.innerHTML = '<span style="font-size:11px;color:var(--muted);">No orders found in Airtable.</span>';
+    return;
+  }
+  var rowStyle = 'display:flex;align-items:center;gap:7px;font-size:12px;';
+  var boxStyle = 'width:56px;padding:4px 6px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:\'DM Sans\',sans-serif;font-size:12px;';
+  el.innerHTML = '<label style="'+rowStyle+'font-weight:700;cursor:pointer;"><input type="checkbox" id="dl-ord-all" onchange="dlToggleAll(this.checked)" /> All orders ('+dlOrders.length+')</label>'
+    + dlOrders.map(function(o){
+      return '<div style="'+rowStyle+'"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;"><input type="checkbox" class="dl-ord-cb" value="'+escHtml(o.num)+'" /> '+escHtml(o.num)+' - '+escHtml(o.customer)+'</label>'
+        + '<span style="font-size:11px;color:var(--muted);">boxes</span><input type="number" class="dl-box-n" data-num="'+escHtml(o.num)+'" min="1" max="99" value="1" style="'+boxStyle+'" /></div>';
+    }).join('');
+}
+
+function dlToggleAll(on) {
+  var cbs = document.querySelectorAll('.dl-ord-cb');
+  for(var i=0;i<cbs.length;i++) cbs[i].checked = on;
+}
+
+function deliveryLabelHtml(l) {
+  var nameCls = l.customer.length>30 ? 'dlb-name xs' : (l.customer.length>20 ? 'dlb-name sm' : 'dlb-name');
+  var checks = '';
+  for(var i=1;i<=l.of;i++) checks += '<span class="dlb-chk'+(i===l.n?' on':'')+'">'+(i===l.n?'✓':'')+'</span>';
+  return '<div class="dlabel">'
+    + '<div class="dlb-logo"><img src="'+LOGO_STRIP_URI+'" alt="Cook It"></div>'
+    + '<div class="dlb-tag">DELIVERY</div>'
+    + '<div class="dlb-kicker">Deliver To</div>'
+    + '<div class="'+nameCls+'">'+escHtml(l.customer)+'</div>'
+    + '<div class="dlb-kicker">Order</div>'
+    + '<div class="dlb-bar" style="line-height:0;">'+code128Svg('CK'+l.num, 38)+'</div>'
+    + '<div class="dlb-ord">#'+escHtml(l.num)+'</div>'
+    + '<div class="dlb-kicker">Delivery Date</div>'
+    + '<div class="dlb-date">'+escHtml(dlFmtDate(l.date))+'</div>'
+    + '<div class="dlb-box">BOX '+l.n+' OF '+l.of+'</div>'
+    + '<div class="dlb-checks">'+checks+'</div>'
+    + '<div class="dlb-foot">www.cookitnj.com &nbsp;·&nbsp; 732.492.1067</div>'
+    + '</div>';
+}
+
+function deliverySheetHtml(labels) {
+  var per = DELIVERY_CONFIG.cols * DELIVERY_CONFIG.rows, cells = '';
+  for(var i=0;i<per;i++) cells += (i<labels.length && labels[i]) ? deliveryLabelHtml(labels[i]) : '<div class="dlabel dlb-blank"></div>';
+  var c = DELIVERY_CONFIG;
+  return '<div class="dsheet" style="width:'+c.pageW+'in;height:'+c.pageH+'in;'
+    + 'grid-template-columns:repeat('+c.cols+', '+c.cellW+'in);grid-auto-rows:'+c.cellH+'in;">'
+    + cells + '</div>';
+}
+
+function genDeliveryLabels() {
+  var dateEl = document.getElementById('dl-date');
+  var date = dateEl && dateEl.value ? dateEl.value : '';
+  if(!date){ showFlash('Pick a delivery date first','warn'); return; }
+  var cbs = document.querySelectorAll('.dl-ord-cb');
+  var picked = [];
+  for(var i=0;i<cbs.length;i++) if(cbs[i].checked) picked.push(cbs[i].value);
+  if(!picked.length){ showFlash('Tick at least one order','warn'); return; }
+  var labels = [];
+  picked.forEach(function(num){
+    var ord = null;
+    for(var k=0;k<dlOrders.length;k++) if(dlOrders[k].num === num) ord = dlOrders[k];
+    if(!ord) return;
+    var boxEl = document.querySelector('.dl-box-n[data-num="'+num+'"]');
+    var boxes = parseInt(boxEl && boxEl.value, 10);
+    if(!boxes || boxes < 1) boxes = 1;
+    for(var b=1;b<=boxes;b++) labels.push({num: ord.num, customer: ord.customer, date: date, n: b, of: boxes});
+  });
+  var per = DELIVERY_CONFIG.cols * DELIVERY_CONFIG.rows, sheets = [];
+  for(var j=0;j<labels.length;j+=per) sheets.push(labels.slice(j, j+per));
+  currentDeliverySheets = sheets;
+  document.getElementById('lb-preview').innerHTML = sheets.map(deliverySheetHtml).join('');
+  document.getElementById('lb-summary').textContent = labels.length + ' delivery labels · ' + sheets.length + ' sheet' + (sheets.length===1?'':'s');
+  document.getElementById('lb-print-btn').style.display = 'inline-block';
+  document.getElementById('lb-print-btn').onclick = printDeliveryLabels;
+  var hint = document.getElementById('lb-fillhint'); if(hint) hint.style.display = 'none';
+  showFlash(labels.length + ' delivery labels ready - review below, then Print','ok');
+}
+
+function printDeliveryLabels() {
+  if(!currentDeliverySheets.length){ showFlash('Generate delivery labels first','warn'); return; }
+  var w = window.open('','_blank');
+  if(!w){ showFlash('Popup blocked - allow popups to print','err'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cook It NJ Delivery Labels</title><style>'+DELIVERY_PRINT_CSS+'</style></head><body>'+currentDeliverySheets.map(deliverySheetHtml).join('')+'</body></html>');
+  w.document.close();
+  w.focus();
+  var tries = 0;
+  (function waitImgs(){
+    var imgs = w.document.images, ready = true;
+    for(var k=0;k<imgs.length;k++){ if(!imgs[k].complete){ ready = false; break; } }
+    if(ready || tries > 40){ w.print(); return; }
+    tries++; setTimeout(waitImgs, 100);
+  })();
+}
+
 function lbItemQtyDefault() {
   // Full sheet is the deliberate single-item use; default the qty to a full sheet.
   document.getElementById('lb-item-qty').value=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
@@ -2004,6 +2170,9 @@ function renderLabelsPanel() {
   lbItemQtyDefault();
   renderCatButtons();
   renderExtrasPicker();
+  var pbtn=document.getElementById('lb-print-btn'); if(pbtn) pbtn.onclick=printLabels;
+  var dd=document.getElementById('dl-date'); if(dd && !dd.value){ var t=new Date(); dd.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+  fetchDeliveryOrders(false);
   var st=document.getElementById('lb-start');
   if(st) st.max=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
 }
