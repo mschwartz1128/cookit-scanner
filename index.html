@@ -1430,14 +1430,12 @@ function computeFifoAllocation() {
   });
 
   // For each SKU:
-  // Step 1 — deduct units consumed by packed/shipped orders from the pool
-  // Step 2 — FIFO allocate remaining units to unpacked orders by order number
+  // Step 1 — per SKU, deduct units consumed by packed/shipped orders from the pool
+  var pool = {}; // sku -> units left after packed/shipped consumption
   SKUS.forEach(function(s) {
     var sku = s.sku;
     var available = prodCount[sku] ? prodCount[sku].done : 0;
-    if (available === 0) return;
 
-    // Step 1: packed/shipped orders consume from pool first
     var packedOrders = Object.keys(orders).filter(function(num) {
       return (orders[num].shipped || orders[num].packed) &&
              orders[num].items.some(function(item){ return item.sku === sku; });
@@ -1449,12 +1447,46 @@ function computeFifoAllocation() {
       allocation[num][sku] = consume;
       available -= consume;
     });
+    pool[sku] = available;
+  });
 
-    // Step 2: FIFO allocate remaining to unshipped orders by order number
-    var openOrders = Object.keys(orders)
+  // Step 2 — greedy completion: repeatedly finish the open order with the
+  // fewest missing units that the remaining pools can fully cover. A finished
+  // order ships and frees freezer space, so completing an almost-done order
+  // beats parking units in orders that are nowhere close.
+  var openNums = Object.keys(orders).filter(function(num) {
+    return !orders[num].shipped && !orders[num].packed;
+  });
+  while (true) {
+    var best = null, bestMissing = Infinity, bestNeeds = null;
+    openNums.forEach(function(num) {
+      var needs = [], missing = 0;
+      orders[num].items.forEach(function(item) {
+        var short = item.qtyOrdered - (allocation[num][item.sku] || 0);
+        if (short > 0) { needs.push({sku: item.sku, qty: short}); missing += short; }
+      });
+      if (missing === 0 || missing >= bestMissing) return;
+      for (var i = 0; i < needs.length; i++) {
+        if ((pool[needs[i].sku] || 0) < needs[i].qty) return; // pool can't finish this order
+      }
+      best = num; bestMissing = missing; bestNeeds = needs;
+    });
+    if (!best) break;
+    bestNeeds.forEach(function(n) {
+      allocation[best][n.sku] += n.qty;
+      pool[n.sku] -= n.qty;
+    });
+  }
+
+  // Step 3 — FIFO fallback: leftover units that can't complete any order go to
+  // open orders by order number, so partial progress displays exactly as before.
+  SKUS.forEach(function(s) {
+    var sku = s.sku;
+    var available = pool[sku] || 0;
+    if (available <= 0) return;
+    var openOrders = openNums
       .filter(function(num) {
-        return !orders[num].shipped && !orders[num].packed &&
-               orders[num].items.some(function(item){ return item.sku === sku; });
+        return orders[num].items.some(function(item){ return item.sku === sku; });
       })
       .sort(function(a, b) { return parseInt(a) - parseInt(b); });
 
@@ -1462,7 +1494,8 @@ function computeFifoAllocation() {
       if (available <= 0) return;
       var orderItem = orders[num].items.find(function(i){ return i.sku === sku; });
       if (!orderItem) return;
-      var give = Math.min(available, orderItem.qtyOrdered);
+      var give = Math.min(available, orderItem.qtyOrdered - (allocation[num][sku] || 0));
+      if (give <= 0) return;
       allocation[num][sku] = give;
       available -= give;
     });
