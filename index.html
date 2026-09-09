@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v22 - Airtable sync now routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -685,6 +685,7 @@ function atSyncOrders() {
 function atUpdateOrderStatuses() {
   var fifo = computeFifoAllocation();
   var updates = [];
+  var remainingUpdates = [];
   Object.keys(orders).forEach(function(num) {
     var recId = atOrderRecordIds[num];
     if (!recId) return;
@@ -696,6 +697,7 @@ function atUpdateOrderStatuses() {
       'Items Ready': f.itemsReady,
       'Shipped': f.shipped
     }});
+    remainingUpdates.push({id: recId, fields: {'Items Remaining': computeItemsRemaining(num, f)}});
   });
 
   if (updates.length === 0) return;
@@ -708,6 +710,18 @@ function atUpdateOrderStatuses() {
       headers: AT_HEADERS,
       body: JSON.stringify({records: batch})
     }).catch(function(e){ console.warn('AT order status update failed:', e); });
+  }
+
+  // Items Remaining goes in its own PATCH: if the column does not exist in
+  // Airtable yet, only these writes fail (quietly) and Status / Items Ready
+  // sync is unaffected. It starts filling the moment the column exists.
+  for (var j = 0; j < remainingUpdates.length; j += 10) {
+    var rbatch = remainingUpdates.slice(j, j + 10);
+    fetch(AT_ORDERS_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records: rbatch})
+    }).catch(function(e){ console.warn('AT Items Remaining update failed (column exists?):', e); });
   }
 }
 
@@ -1366,6 +1380,12 @@ function atSetOrderStatus(orderNum, status, totalItems, itemsReady, shipped) {
       'Shipped': shipped || false
     }})
   }).catch(function(e){ console.warn('AT order status failed:', e); });
+  // Terminal states (fully packed / shipped) have nothing remaining
+  fetch(AT_ORDERS_URL + '/' + recId, {
+    method: 'PATCH',
+    headers: AT_HEADERS,
+    body: JSON.stringify({fields:{'Items Remaining': ''}})
+  }).catch(function(e){ console.warn('AT Items Remaining clear failed (column exists?):', e); });
 }
 
 function renderPackHist() {
@@ -1522,6 +1542,22 @@ function computeFifoAllocation() {
   });
 
   return result;
+}
+
+// Build the per-order "what's still missing" breakdown from the same allocation
+// result that powers Items Ready: e.g. "3x Sweet French Roast (9x13), 1x Grilled
+// Vegetables (Half 9x13)". Shipped/packed orders and fully-covered orders get ''
+// so the Airtable column only shows text where work remains.
+function computeItemsRemaining(num, f) {
+  var order = orders[num];
+  if (!order || order.shipped || order.packed) return '';
+  var parts = [];
+  order.items.forEach(function(item) {
+    var allocated = (f && f.allocation[item.sku]) || 0;
+    var short = item.qtyOrdered - allocated;
+    if (short > 0) parts.push(short + 'x ' + item.name + (item.size ? ' (' + item.size + ')' : ''));
+  });
+  return parts.join(', ');
 }
 
 // ── COOK NEXT ────────────────────────────────────────────
