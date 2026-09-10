@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -980,7 +980,7 @@ function parseShopifyCSV(text) {
   if (lines.length < 2) {showFlash('CSV appears empty','err');return;}
   var header = parseCSVLine(lines[0]);
   var col = {};
-  header.forEach(function(h,i){col[h.trim().toLowerCase()]=i;});
+  header.forEach(function(h,i){col[h.trim().toLowerCase().replace(/\s+/g,' ')]=i;});
 
   var orderNumCol = col['name']!==undefined?col['name']:col['order'];
   var customerCol = col['billing name']!==undefined?col['billing name']:col['email'];
@@ -1011,11 +1011,19 @@ function parseShopifyCSV(text) {
     if (orders[orderNum]) { skippedOrders++; continue; }
 
     if(!newOrderData[orderNum]) {
-      var a1=col['shipping address1']!==undefined?(cols[col['shipping address1']]||''):'';
-      var a2=col['shipping address2']!==undefined?(cols[col['shipping address2']]||''):'';
-      var ac=col['shipping city']!==undefined?(cols[col['shipping city']]||''):'';
-      var ap=col['shipping province']!==undefined?(cols[col['shipping province']]||''):'';
-      var az=col['shipping zip']!==undefined?(cols[col['shipping zip']]||''):'';
+      function csvCol(names){ for(var ci=0;ci<names.length;ci++){ var idx=col[names[ci]]; if(idx!==undefined && cols[idx] && cols[idx].trim()) return cols[idx].trim(); } return ''; }
+      var a1=csvCol(['shipping address1','shipping address 1','shipping street','shipping address']);
+      var a2=csvCol(['shipping address2','shipping address 2']);
+      var ac=csvCol(['shipping city']);
+      var ap=csvCol(['shipping province','shipping state','shipping province code']);
+      var az=csvCol(['shipping zip','shipping postal code','shipping zipcode','shipping zip code']);
+      if(!a1 && !ac && !az){
+        a1=csvCol(['billing address1','billing address 1','billing street','billing address']);
+        a2=csvCol(['billing address2','billing address 2']);
+        ac=csvCol(['billing city']);
+        ap=csvCol(['billing province','billing state','billing province code']);
+        az=csvCol(['billing zip','billing postal code','billing zipcode','billing zip code']);
+      }
       var addrParts=[a1, a2, (ac+(ac&&(ap||az)?', ':'')+ap+(ap&&az?' ':'')+az)].filter(function(x){return x && x.trim();});
       newOrderData[orderNum]={customer:customer,address:addrParts.join(', '),items:[]}; newOrders++;
     }
@@ -2038,6 +2046,18 @@ var DELIVERY_PRINT_CSS = DELIVERY_CSS +
 var dlOrders = []; // {num, customer} straight from Airtable, read-only
 var currentDeliverySheets = [];
 
+function titleCaseName(name) {
+  var small = {'and':1,'the':1,'of':1,'&':1,'y':1,'de':1,'van':1,'von':1,'ben':1,'bat':1};
+  return String(name || '').trim().replace(/\s+/g,' ').split(' ').map(function(w, i){
+    return w.split('-').map(function(part){
+      if(!part) return part;
+      var low = part.toLowerCase();
+      if(i > 0 && small[low]) return low;
+      return low.charAt(0).toUpperCase() + low.slice(1);
+    }).join('-');
+  }).join(' ');
+}
+
 function dlFmtDate(iso) {
   if(!iso) return '';
   var d = new Date(iso + 'T12:00:00');
@@ -2082,7 +2102,7 @@ function renderDeliveryOrderList() {
   var boxStyle = 'width:56px;padding:4px 6px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:\'DM Sans\',sans-serif;font-size:12px;';
   el.innerHTML = '<label style="'+rowStyle+'font-weight:700;cursor:pointer;"><input type="checkbox" id="dl-ord-all" onchange="dlToggleAll(this.checked)" /> All orders ('+dlOrders.length+')</label>'
     + dlOrders.map(function(o){
-      return '<div style="'+rowStyle+'"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;"><input type="checkbox" class="dl-ord-cb" value="'+escHtml(o.num)+'" /> '+escHtml(o.num)+' - '+escHtml(o.customer)+'</label>'
+      return '<div style="'+rowStyle+'"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;flex:1;"><input type="checkbox" class="dl-ord-cb" value="'+escHtml(o.num)+'" /> '+escHtml(o.num)+' - '+escHtml(titleCaseName(o.customer))+'</label>'
         + '<span style="font-size:11px;color:var(--muted);">boxes</span><input type="number" class="dl-box-n" data-num="'+escHtml(o.num)+'" min="1" max="99" value="1" style="'+boxStyle+'" /></div>';
     }).join('');
 }
@@ -2100,7 +2120,7 @@ function deliveryLabelHtml(l) {
     + '<div class="dlb-logo"><img src="'+LOGO_STRIP_URI+'" alt="Cook It"></div>'
     + '<div class="dlb-tag">DELIVERY</div>'
     + '<div class="dlb-kicker">Deliver To</div>'
-    + '<div class="'+nameCls+'">'+escHtml(l.customer)+'</div>'
+    + '<div class="'+nameCls+'">'+escHtml(titleCaseName(l.customer))+'</div>'
     + (l.address ? '<div class="dlb-addr">'+escHtml(l.address)+'</div>' : '<div class="dlb-addr dlb-addr-empty">&nbsp;</div>')
     + '<div class="dlb-kicker">Order</div>'
     + '<div class="dlb-bar" style="line-height:0;">'+code128Svg('CK'+l.num, 38)+'</div>'
