@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -2102,7 +2102,7 @@ function fetchDeliveryOrders(manual) {
           if(akey) addr = f[akey];
           var num = String(f['Order Number']);
           if(!addr && orders[num] && orders[num].address) addr = orders[num].address;
-          return {num: num, customer: f['Customer'] || 'Unknown', address: addr};
+          return {num: num, customer: f['Customer'] || 'Unknown', address: addr, status: f['Status'] || '', itemsRemaining: (typeof f['Items Remaining']==='number' ? f['Items Remaining'] : null)};
         })
         .sort(function(a,b){ return a.num < b.num ? -1 : a.num > b.num ? 1 : 0; });
       renderDeliveryOrderList();
@@ -2190,8 +2190,45 @@ function genDeliveryLabels() {
   showFlash(labels.length + ' delivery labels ready - review below, then Print','ok');
 }
 
+// v28: is this order fully fulfilled? Session scan data wins; falls back to
+// the Airtable order record (Status / Items Remaining). If nothing is known
+// about the order, don't block the print.
+function dlOrderFulfilled(num){
+  var o = orders[num];
+  if(o){
+    if(o.shipped || o.packed) return true;
+    if(o.items && o.items.length) return o.items.every(function(it){ return (it.qtyPacked||0) >= it.qtyOrdered; });
+  }
+  for(var i=0;i<dlOrders.length;i++){
+    if(dlOrders[i].num===num){
+      var d = dlOrders[i];
+      if(d.status==='Shipped' || d.status==='Ready Now') return true;
+      if(typeof d.itemsRemaining==='number' && d.itemsRemaining!==null) return d.itemsRemaining<=0;
+      return true;
+    }
+  }
+  return true;
+}
+
 function printDeliveryLabels() {
   if(!currentDeliverySheets.length){ showFlash('Generate delivery labels first','warn'); return; }
+  // v28 print guard: warn before printing labels for orders that are not fully
+  // fulfilled. Yes = print and leave the order OPEN (partial shipment - he comes
+  // back for the rest later). No = cancel. Nothing here marks packed/shipped or
+  // syncs completion to Airtable.
+  var partials = [], seen = {};
+  currentDeliverySheets.forEach(function(sheet){
+    sheet.forEach(function(l){
+      if(!seen[l.num]){ seen[l.num]=true; if(!dlOrderFulfilled(l.num)) partials.push(l.num); }
+    });
+  });
+  if(partials.length){
+    var which = partials.length===1 ? 'Order #'+partials[0]+' is' : 'Orders '+partials.map(function(n){return '#'+n;}).join(', ')+' are';
+    if(!confirm(which+' not fully fulfilled. Print label anyway?')){
+      showFlash('Print cancelled - no labels printed','warn');
+      return;
+    }
+  }
   var w = window.open('','_blank');
   if(!w){ showFlash('Popup blocked - allow popups to print','err'); return; }
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cook It NJ Delivery Labels</title><style>'+DELIVERY_PRINT_CSS+'</style></head><body>'+currentDeliverySheets.map(deliverySheetHtml).join('')+'</body></html>');
