@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -276,6 +276,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 
   <!-- PACK PANEL -->
   <div class="panel" id="panel-pack">
+    <div id="owed-wrap" style="display:none;background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#7a5a00;margin-bottom:8px;">⚠ Still owed - shipped short, remake later</div>
+      <div id="owed-list"></div>
+    </div>
     <div class="scan-bar">
       <div class="scan-label">Step 1 — Enter order number to load it</div>
       <div class="order-load-bar">
@@ -375,7 +379,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <span id="lb-summary" style="font-size:12px;color:var(--muted);"></span>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-left:auto;">
         Start at label #
-        <input id="lb-start" type="number" min="1" max="30" value="1" style="width:64px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
+        <input id="lb-start" type="number" min="1" max="30" value="1" onchange="lbStartDirty=true" style="width:64px;padding:6px 8px;border:1px solid var(--border2);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12px;" />
       </label>
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
         <input id="lb-mono" type="checkbox"> Black &amp; white logo
@@ -814,6 +818,7 @@ var mode = 'prod';
 var prodHistory = [];
 var packHistory = [];
 var extrasPrinted = {}; // sku -> units of extras labels already printed
+var owedItems = []; // v34: [{orderNum, customer, items:[{name,size,qty}], reason, at}] shipped-short items he still owes a customer
 
 // ── PERSISTENCE ──────────────────────────────────────────
 function saveSession() {
@@ -824,6 +829,7 @@ function saveSession() {
       prodHistory: prodHistory.slice(0,50),
       packHistory: packHistory.slice(0,50),
       extrasPrinted: extrasPrinted,
+      owedItems: owedItems,
       mergedOrders: mergedOrders,
       savedAt: new Date().toISOString()
     };
@@ -843,6 +849,7 @@ function loadSession() {
     prodHistory = data.prodHistory || [];
     packHistory = data.packHistory || [];
     extrasPrinted = data.extrasPrinted || {};
+    owedItems = data.owedItems || [];
     mergedOrders = data.mergedOrders || {};
 
     // Restore scan counts into prodCount
@@ -1616,6 +1623,71 @@ function updateProgress() {
   }
 }
 
+// v34: owed-items ledger. Shipping short warns, demands a reason+plan, and
+// parks the missing items in a persistent list on this tab until he marks
+// them remade. Real case: items meant for one order went into another, the
+// second order shipped short, and the remake must not be forgotten.
+function orderShortfall(n){
+  var o=orders[n];
+  if(!o||!o.items) return [];
+  var out=[];
+  o.items.forEach(function(it){
+    var short=(it.qtyOrdered||0)-(it.qtyPacked||0);
+    if(short>0) out.push({name:it.name,size:it.size,qty:short});
+  });
+  return out;
+}
+
+function renderOwed(){
+  var wrap=document.getElementById('owed-wrap'), list=document.getElementById('owed-list');
+  if(!wrap||!list) return;
+  if(!owedItems.length){ wrap.style.display='none'; list.innerHTML=''; return; }
+  wrap.style.display='block';
+  list.innerHTML=owedItems.map(function(e,i){
+    var items=e.items.map(function(it){ return it.qty+'x '+escHtml(it.name)+(it.size?' ('+escHtml(it.size)+')':''); }).join(', ');
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid #f0c36d;">'
+      +'<div style="flex:1;font-size:13px;color:#7a5a00;"><b>Order #'+escHtml(e.orderNum)+'</b>'+(e.customer?' - '+escHtml(e.customer):'')+': '+items
+      +(e.reason?'<div style="font-size:12px;font-weight:500;margin-top:2px;color:#8a6a10;">Reason/plan: '+escHtml(e.reason)+'</div>':'')
+      +'<div style="font-size:11px;font-weight:500;margin-top:1px;color:#a08a50;">'+escHtml(e.at||'')+'</div></div>'
+      +'<button onclick="markOwedRemade('+i+')" style="padding:6px 12px;border-radius:6px;border:1px solid #7a5a00;background:#fff;color:#7a5a00;font-family:sans-serif;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">Remade ✓</button>'
+      +'</div>';
+  }).join('');
+}
+
+function markOwedRemade(i){
+  var e=owedItems[i];
+  if(!e) return;
+  if(!confirm('Mark the owed item'+(e.items.length===1?'':'s')+' for Order #'+e.orderNum+' as remade/delivered?')) return;
+  owedItems.splice(i,1);
+  saveSession();
+  renderOwed();
+  showFlash('Owed items for Order #'+e.orderNum+' cleared','ok');
+}
+
+// Returns true when the ship may proceed. On a shortfall: warn, require a
+// reason+plan (free text), and record the owed items so they stay visible.
+function captureShortfallsBeforeShip(nums){
+  var shortNums=[], lines=[];
+  nums.forEach(function(n){
+    var sf=orderShortfall(n);
+    if(sf.length){
+      shortNums.push({num:n,items:sf});
+      lines.push('#'+n+': '+sf.map(function(it){return it.qty+'x '+it.name;}).join(', '));
+    }
+  });
+  if(!shortNums.length) return true;
+  if(!confirm('You did not complete all items - shipping SHORT:\n\n'+lines.join('\n')+'\n\nShip anyway?')) return false;
+  var reason=prompt('Why is it shipping short, and what is the plan to make it right?\n(e.g. "salmon went into #'+nums[0]+' by mistake - remake Thursday")','');
+  if(reason===null){ showFlash('Ship cancelled - nothing marked shipped','warn'); return false; }
+  var t=new Date().toLocaleString();
+  shortNums.forEach(function(sn){
+    owedItems.push({orderNum:sn.num, customer:(orders[sn.num]||{}).customer||'', items:sn.items, reason:reason.trim(), at:t});
+  });
+  saveSession();
+  renderOwed();
+  return true;
+}
+
 // v29b: ship ONLY the fully packed order(s) in a multi-order session, leaving
 // the unpacked sibling(s) open. Requires an explicit confirm - this is the
 // "not shipping the other one?" safety net he asked for.
@@ -1625,6 +1697,7 @@ function markPartialShipped() {
   var notDone=currentOrder.nums.filter(function(n){ return !orderFullyPacked(n); });
   if(!doneNums.length || !notDone.length) return;
   if(!confirm("You didn't pack this customer's other order (#"+notDone.join(', #')+") - not shipping it?\n\nOK ships ONLY #"+doneNums.join(', #')+" and leaves #"+notDone.join(', #')+" open for later.")) return;
+  if(!captureShortfallsBeforeShip(doneNums)) return;
   doneNums.forEach(function(n){
     if(orders[n]) { orders[n].shipped=true; orders[n].packed=true; }
     var t=orders[n]?orders[n].items.reduce(function(st,i){return st+i.qtyOrdered;},0):0;
@@ -1649,6 +1722,7 @@ function markShipped() {
   if(!currentOrder) return;
   var nums = currentOrder.nums || [currentOrder.num];
   if(!confirm('Mark Order #'+nums.join(' + #')+' for '+currentOrder.customer+' as SHIPPED?')) return;
+  if(!captureShortfallsBeforeShip(nums)) return;
   // Mark in local orders store + Airtable, per order
   nums.forEach(function(n){
     if(orders[n]) { orders[n].shipped = true; orders[n].packed = true; }
@@ -1983,6 +2057,7 @@ function renderCookNext() {
 
 // ── INIT ──────────────────────────────────────────────────
 loadSession();
+renderOwed();
 renderProdGrid();
 updateProdStats();
 renderProdHist();
@@ -2054,11 +2129,40 @@ function labelHtml(s) {
 
 // "Start at label #" - 1-based position of the first real label on the first sheet.
 // Positions before it are left blank so partially-used sheets can be reused.
+// v33: after each printed run we remember where the sheet ended. On the next
+// Generate, if he has not typed a start number himself, offer to continue at
+// the next free slot (asked via confirm - never silently assumed).
+var lbStartDirty=false;
+var LB_LASTPRINT_KEY='cookit_lb_lastprint';
+function lbRecordLastPrint(startAt,count){
+  try{ localStorage.setItem(LB_LASTPRINT_KEY, JSON.stringify({start:startAt,count:count,at:new Date().toISOString()})); }catch(e){}
+}
+function lbSuggestNextStart(){
+  if(lbStartDirty) return;
+  var last=null;
+  try{ last=JSON.parse(localStorage.getItem(LB_LASTPRINT_KEY)||'null'); }catch(e){}
+  if(!last||!last.start||!last.count) return;
+  var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
+  var next=((last.start-1+last.count)%per)+1;
+  var el=document.getElementById('lb-start');
+  if(!el) return;
+  var cur=parseInt(el.value,10)||1;
+  if(next===cur) return;
+  if(confirm('Last run started at label '+last.start+' and printed '+last.count+' label'+(last.count===1?'':'s')+', so the sheet is free from slot '+next+'.\n\nStart this run at '+next+'? (Cancel keeps '+cur+')')){
+    el.value=next;
+    showFlash('Starting at label '+next+' - change the number if that sheet is already used','ok');
+  } else {
+    lbStartDirty=true;
+  }
+}
+var lbLastChosenStart=1;
 function lbStartAt() {
+  lbSuggestNextStart();
   var per=LABEL_CONFIG.cols*LABEL_CONFIG.rows;
   var n=parseInt((document.getElementById('lb-start')||{}).value,10);
   if(!n||n<1) n=1;
   if(n>per) n=per;
+  lbLastChosenStart=n;
   return n;
 }
 
@@ -2272,6 +2376,20 @@ function genLabelsExtras() {
   items.forEach(function(it){pendingExtrasPrint[it.sku]=it.qty;});
 }
 
+// v33: clear the last run off the labels tab after printing so he never has
+// to hard-refresh: preview cleared, print button hidden, all selections unticked.
+function resetLabelsAfterPrint(){
+  currentLabelSheets=[]; currentDeliverySheets=[];
+  var pv=document.getElementById('lb-preview'); if(pv) pv.innerHTML='';
+  var pb=document.getElementById('lb-print-btn'); if(pb){ pb.style.display='none'; pb.onclick=printLabels; }
+  var sm=document.getElementById('lb-summary'); if(sm) sm.textContent='';
+  var hint=document.getElementById('lb-fillhint'); if(hint) hint.style.display='none';
+  document.querySelectorAll('.lb-ord-cb,.lb-ext-cb,#lb-ord-all,#lb-ext-all').forEach(function(cb){ cb.checked=false; });
+  document.querySelectorAll('#dl-order-list input[type=checkbox]').forEach(function(cb){ cb.checked=false; });
+  lbSelCats=[]; renderCatButtons();
+  pendingExtrasPrint=null;
+}
+
 function printLabels() {
   if(!currentLabelSheets.length){showFlash('Generate labels first','warn');return;}
   var w=window.open('','_blank');
@@ -2283,7 +2401,7 @@ function printLabels() {
   (function waitImgs(){
     var imgs=w.document.images, ready=true;
     for(var k=0;k<imgs.length;k++){ if(!imgs[k].complete){ ready=false; break; } }
-    if(ready||tries>40){ w.print(); markExtrasPrinted(); return; }
+    if(ready||tries>40){ w.print(); markExtrasPrinted(); lbRecordLastPrint(lbLastChosenStart,currentLabelSheets.reduce(function(n,sh){return n+sh.filter(function(l){return !!l;}).length;},0)); resetLabelsAfterPrint(); showFlash('Labels sent to print - page cleared for the next run','ok'); return; }
     tries++; setTimeout(waitImgs,100);
   })();
 }
@@ -2497,7 +2615,7 @@ function printDeliveryLabels() {
   (function waitImgs(){
     var imgs = w.document.images, ready = true;
     for(var k=0;k<imgs.length;k++){ if(!imgs[k].complete){ ready = false; break; } }
-    if(ready || tries > 40){ w.print(); return; }
+    if(ready || tries > 40){ w.print(); resetLabelsAfterPrint(); showFlash('Delivery labels sent to print - page cleared for the next run','ok'); return; }
     tries++; setTimeout(waitImgs, 100);
   })();
 }
