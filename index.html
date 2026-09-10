@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1010,7 +1010,15 @@ function parseShopifyCSV(text) {
     // Skip if order already exists
     if (orders[orderNum]) { skippedOrders++; continue; }
 
-    if(!newOrderData[orderNum]) { newOrderData[orderNum]={customer:customer,items:[]}; newOrders++; }
+    if(!newOrderData[orderNum]) {
+      var a1=col['shipping address1']!==undefined?(cols[col['shipping address1']]||''):'';
+      var a2=col['shipping address2']!==undefined?(cols[col['shipping address2']]||''):'';
+      var ac=col['shipping city']!==undefined?(cols[col['shipping city']]||''):'';
+      var ap=col['shipping province']!==undefined?(cols[col['shipping province']]||''):'';
+      var az=col['shipping zip']!==undefined?(cols[col['shipping zip']]||''):'';
+      var addrParts=[a1, a2, (ac+(ac&&(ap||az)?', ':'')+ap+(ap&&az?' ':'')+az)].filter(function(x){return x && x.trim();});
+      newOrderData[orderNum]={customer:customer,address:addrParts.join(', '),items:[]}; newOrders++;
+    }
     var sku=shopifyNameToSKU(itemName);
     if(sku) {
       var existing=newOrderData[orderNum].items.find(function(it){return it.sku===sku;});
@@ -2011,6 +2019,8 @@ var DELIVERY_CSS =
 ".dlb-name{font-family:'DM Sans',sans-serif;font-weight:700;font-size:26px;line-height:1.1;color:#000;margin-bottom:10px;}\n" +
 ".dlb-name.sm{font-size:20px;}\n" +
 ".dlb-name.xs{font-size:16px;}\n" +
+".dlb-addr{font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;line-height:1.25;color:#222;margin-bottom:10px;}\n" +
+".dlb-addr-empty{margin-bottom:10px;}\n" +
 ".dlb-ord{font-family:'DM Mono',monospace;font-weight:500;font-size:13px;letter-spacing:1px;color:#000;margin-top:3px;margin-bottom:10px;}\n" +
 ".dlb-date{font-family:'DM Sans',sans-serif;font-weight:600;font-size:15px;color:#000;margin-bottom:12px;}\n" +
 ".dlb-box{font-family:'DM Sans',sans-serif;font-weight:700;font-size:24px;letter-spacing:1px;color:#004938;margin-bottom:6px;}\n" +
@@ -2046,7 +2056,15 @@ function fetchDeliveryOrders(manual) {
       if(!data.records){ el.innerHTML = '<span style="font-size:11px;color:var(--orange);">Could not load orders from Airtable.</span>'; return; }
       dlOrders = data.records
         .filter(function(rec){ return rec.fields && rec.fields['Order Number']; })
-        .map(function(rec){ return {num: String(rec.fields['Order Number']), customer: rec.fields['Customer'] || 'Unknown'}; })
+        .map(function(rec){
+          var f = rec.fields, addr = '';
+          var akey = null;
+          Object.keys(f).forEach(function(k){ if(!akey && /address|street/i.test(k) && typeof f[k] === 'string') akey = k; });
+          if(akey) addr = f[akey];
+          var num = String(f['Order Number']);
+          if(!addr && orders[num] && orders[num].address) addr = orders[num].address;
+          return {num: num, customer: f['Customer'] || 'Unknown', address: addr};
+        })
         .sort(function(a,b){ return a.num < b.num ? -1 : a.num > b.num ? 1 : 0; });
       renderDeliveryOrderList();
       if(manual) showFlash(dlOrders.length + ' orders loaded from Airtable','ok');
@@ -2083,6 +2101,7 @@ function deliveryLabelHtml(l) {
     + '<div class="dlb-tag">DELIVERY</div>'
     + '<div class="dlb-kicker">Deliver To</div>'
     + '<div class="'+nameCls+'">'+escHtml(l.customer)+'</div>'
+    + (l.address ? '<div class="dlb-addr">'+escHtml(l.address)+'</div>' : '<div class="dlb-addr dlb-addr-empty">&nbsp;</div>')
     + '<div class="dlb-kicker">Order</div>'
     + '<div class="dlb-bar" style="line-height:0;">'+code128Svg('CK'+l.num, 38)+'</div>'
     + '<div class="dlb-ord">#'+escHtml(l.num)+'</div>'
@@ -2119,7 +2138,7 @@ function genDeliveryLabels() {
     var boxEl = document.querySelector('.dl-box-n[data-num="'+num+'"]');
     var boxes = parseInt(boxEl && boxEl.value, 10);
     if(!boxes || boxes < 1) boxes = 1;
-    for(var b=1;b<=boxes;b++) labels.push({num: ord.num, customer: ord.customer, date: date, n: b, of: boxes});
+    for(var b=1;b<=boxes;b++) labels.push({num: ord.num, customer: ord.customer, address: ord.address || '', date: date, n: b, of: boxes});
   });
   var per = DELIVERY_CONFIG.cols * DELIVERY_CONFIG.rows, sheets = [];
   for(var j=0;j<labels.length;j+=per) sheets.push(labels.slice(j, j+per));
