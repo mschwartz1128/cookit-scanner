@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -975,6 +975,27 @@ function processFile(file) {
   reader.readAsText(file);
 }
 
+// v27: extract a display address from one CSV row. Shipping columns first
+// (common Shopify variants, matched against the normalized header map),
+// billing as last-resort fallback. Strips Excel's leading apostrophe ('08701).
+function csvRowAddress(colMap, cols){
+  function csvCol(names){ for(var ci=0;ci<names.length;ci++){ var idx=colMap[names[ci]]; if(idx!==undefined && cols[idx] && cols[idx].trim()) return cols[idx].trim().replace(/^'+/,''); } return ''; }
+  var a1=csvCol(['shipping address1','shipping address 1','shipping street','shipping address']);
+  var a2=csvCol(['shipping address2','shipping address 2']);
+  var ac=csvCol(['shipping city']);
+  var ap=csvCol(['shipping province','shipping state','shipping province code']);
+  var az=csvCol(['shipping zip','shipping postal code','shipping zipcode','shipping zip code']);
+  if(!a1 && !ac && !az){
+    a1=csvCol(['billing address1','billing address 1','billing street','billing address']);
+    a2=csvCol(['billing address2','billing address 2']);
+    ac=csvCol(['billing city']);
+    ap=csvCol(['billing province','billing state','billing province code']);
+    az=csvCol(['billing zip','billing postal code','billing zipcode','billing zip code']);
+  }
+  var addrParts=[a1, a2, (ac+(ac&&(ap||az)?', ':'')+ap+(ap&&az?' ':'')+az)].filter(function(x){return x && x.trim();});
+  return addrParts.join(', ');
+}
+
 function parseShopifyCSV(text) {
   var lines = text.split('\n');
   if (lines.length < 2) {showFlash('CSV appears empty','err');return;}
@@ -992,7 +1013,7 @@ function parseShopifyCSV(text) {
     return;
   }
 
-  var newOrders=0, skippedOrders=0, matched=0;
+  var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0;
   var unmatchedMap={};
   var newOrderData={};
 
@@ -1005,27 +1026,24 @@ function parseShopifyCSV(text) {
     var customer=customerCol!==undefined?(cols[customerCol]||'Unknown'):'Unknown';
     var itemName=lineItemCol!==undefined?(cols[lineItemCol]||''):'';
     var qty=parseInt(cols[qtyCol]||'1',10)||1;
+
+    // v27: capture the address from ANY row of the order that carries it
+    // (Shopify puts it only on the first line-item row), and backfill orders
+    // that already exist (session restore / duplicate re-import) instead of
+    // skipping them - that skip was why re-importing never fixed blank labels. Re-imports merge: items, scan progress and packed/shipped state of existing orders are never touched; the CSV only fills gaps (addresses) and adds new orders.
+    var rowAddr=csvRowAddress(col,cols);
+    if(rowAddr){
+      if(orders[orderNum] && orders[orderNum].address!==rowAddr){ orders[orderNum].address=rowAddr; addrUpdated++; }
+      else if(newOrderData[orderNum] && !newOrderData[orderNum].address){ newOrderData[orderNum].address=rowAddr; }
+    }
+
     if(!itemName) continue;
 
     // Skip if order already exists
     if (orders[orderNum]) { skippedOrders++; continue; }
 
     if(!newOrderData[orderNum]) {
-      function csvCol(names){ for(var ci=0;ci<names.length;ci++){ var idx=col[names[ci]]; if(idx!==undefined && cols[idx] && cols[idx].trim()) return cols[idx].trim(); } return ''; }
-      var a1=csvCol(['shipping address1','shipping address 1','shipping street','shipping address']);
-      var a2=csvCol(['shipping address2','shipping address 2']);
-      var ac=csvCol(['shipping city']);
-      var ap=csvCol(['shipping province','shipping state','shipping province code']);
-      var az=csvCol(['shipping zip','shipping postal code','shipping zipcode','shipping zip code']);
-      if(!a1 && !ac && !az){
-        a1=csvCol(['billing address1','billing address 1','billing street','billing address']);
-        a2=csvCol(['billing address2','billing address 2']);
-        ac=csvCol(['billing city']);
-        ap=csvCol(['billing province','billing state','billing province code']);
-        az=csvCol(['billing zip','billing postal code','billing zipcode','billing zip code']);
-      }
-      var addrParts=[a1, a2, (ac+(ac&&(ap||az)?', ':'')+ap+(ap&&az?' ':'')+az)].filter(function(x){return x && x.trim();});
-      newOrderData[orderNum]={customer:customer,address:addrParts.join(', '),items:[]}; newOrders++;
+      newOrderData[orderNum]={customer:customer,address:rowAddr,items:[]}; newOrders++;
     }
     var sku=shopifyNameToSKU(itemName);
     if(sku) {
@@ -1059,6 +1077,7 @@ function parseShopifyCSV(text) {
   var statusParts=[orderCount+' orders total'];
   if(newOrders>0) statusParts.push(newOrders+' new added');
   if(skippedOrders>0) statusParts.push(skippedOrders+' duplicates skipped');
+  if(addrUpdated>0) statusParts.push(addrUpdated+' addresses updated');
   statusParts.push(matched+' items matched');
   document.getElementById('csv-status').textContent=statusParts.join(' · ');
   document.getElementById('drop-zone').classList.remove('visible');
