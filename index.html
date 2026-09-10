@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -205,7 +205,17 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
       <button class="csv-btn" onclick="toggleDropZone()">↑ Load CSV</button>
+      <button class="csv-btn" onclick="shopifyPull()">⇅ Pull from Shopify</button>
       <span id="at-status" style="font-size:11px;color:var(--muted)">Connecting to Airtable...</span>
+    </div>
+  </div>
+
+  <div class="unmatched-box" id="shopify-pick-box" style="display:none;">
+    <div class="unmatched-title">🛒 Shopify pull - choose which orders to import (new orders and gap-fills only; your progress is never reset):</div>
+    <div id="shopify-pick-list"></div>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button class="unmatched-btn" onclick="shopifyPickImport()">✅ Import selected</button>
+      <button class="unmatched-btn" style="background:var(--surface2);color:var(--muted);" onclick="shopifyPickCancel()">Cancel</button>
     </div>
   </div>
 
@@ -276,6 +286,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       </div>
       <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
       <div class="prog-text" id="prog-text">0 of 0 items packed</div>
+      <div id="ship-partial-wrap" style="display:none;margin-top:12px;">
+        <button onclick="markPartialShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--orange);background:transparent;color:var(--orange);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">Ship packed order only</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px;">This customer has another open order that is NOT packed</span>
+      </div>
       <div id="ship-btn-wrap" style="display:none;margin-top:12px;">
         <button onclick="markShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:none;background:var(--green);color:#0a2016;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">✅ Mark as Shipped</button>
         <span style="font-size:11px;color:var(--muted);margin-left:12px;">Order is fully packed — click to mark shipped in Airtable</span>
@@ -490,6 +504,8 @@ const STORE_KEY = 'cookit_fall2026_v1';
 // ── AIRTABLE CONFIG ───────────────────────────────────────
 // Token now lives server-side in the cookit-airtable-proxy Cloudflare Worker.
 const AT_PROXY   = 'https://cookit-airtable-proxy.mschwartz1128.workers.dev/v0/app8Y8d551EjxrDpD';
+// v30: server-side proxy that holds the Shopify Admin API token. Read-only.
+const SHOPIFY_PROXY_URL = 'https://cookit-shopify-proxy.mschwartz1128.workers.dev/orders';
 const AT_TABLE   = 'tblY0pDg1tLy64AzA';
 const AT_ORDERS_TABLE = 'tblAOjeSkgCtoIS3B';
 const AT_ORDERS_URL = AT_PROXY + '/' + AT_ORDERS_TABLE;
@@ -787,6 +803,7 @@ var orders = {};
 var scanCounts = {}; // sku -> done count (persisted separately from prodCount)
 var currentOrder = null;
 var pendingUnmatched = [];
+var mergedOrders = {}; // v29: merged-away order number -> surviving order number (persisted)
 var mode = 'prod';
 var prodHistory = [];
 var packHistory = [];
@@ -801,6 +818,7 @@ function saveSession() {
       prodHistory: prodHistory.slice(0,50),
       packHistory: packHistory.slice(0,50),
       extrasPrinted: extrasPrinted,
+      mergedOrders: mergedOrders,
       savedAt: new Date().toISOString()
     };
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -819,6 +837,7 @@ function loadSession() {
     prodHistory = data.prodHistory || [];
     packHistory = data.packHistory || [];
     extrasPrinted = data.extrasPrinted || {};
+    mergedOrders = data.mergedOrders || {};
 
     // Restore scan counts into prodCount
     Object.keys(scanCounts).forEach(function(sku){
@@ -854,7 +873,7 @@ function clearEverything() {
   if (!confirmed) return;
   localStorage.removeItem(STORE_KEY);
   orders = {}; scanCounts = {}; currentOrder = null;
-  pendingUnmatched = []; prodHistory = []; packHistory = []; extrasPrinted = {};
+  pendingUnmatched = []; prodHistory = []; packHistory = []; extrasPrinted = {}; mergedOrders = {};
   SKUS.forEach(function(s){prodCount[s.sku]={needed:0,done:0};});
   atClearAll();
   atClearOrders();
@@ -996,6 +1015,84 @@ function csvRowAddress(colMap, cols){
   return addrParts.join(', ');
 }
 
+// ── SHOPIFY PULL (v30) ─────────────────────────────────────────────
+// Manual trigger ONLY - nothing calls this on load, on a timer, or in the
+// background. Converts the Admin API order list into the exact CSV shape the
+// proven import pipeline already handles, so every merge rule (gap-fill,
+// never reset progress, per-customer merge prompts, mergedOrders) applies
+// identically to a pull and a CSV drop.
+var pendingShopifyOrders=null;
+function shopifyPull() {
+  showFlash('Pulling orders from Shopify...','ok');
+  fetch(SHOPIFY_PROXY_URL)
+    .then(function(r){ if(!r.ok) throw new Error('proxy returned HTTP '+r.status); return r.json(); })
+    .then(function(data){
+      var list = (data && data.orders) || data;
+      if(!list || !list.length){ showFlash('Shopify pull: no unfulfilled orders right now','warn'); return; }
+      pendingShopifyOrders=list;
+      var el=document.getElementById('shopify-pick-list');
+      el.innerHTML=list.map(function(o,i){
+        var cust=((o.billing_address&&o.billing_address.name)||(o.shipping_address&&o.shipping_address.name)||'');
+        var num=(o.name||'').replace(/^#/,'');
+        var known=orders[num]||mergedOrders[num];
+        return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;">'
+          +'<input type="checkbox" class="shopify-pick-cb" data-idx="'+i+'" checked>'
+          +'<strong>#'+escHtml(num)+'</strong> '+escHtml(titleCaseName(cust)||'(no name)')
+          +(known?' <span style="font-size:11px;color:var(--muted);">- already loaded, will only fill gaps</span>':' <span style="font-size:11px;color:var(--green);">- new</span>')
+          +'</label>';
+      }).join('');
+      document.getElementById('shopify-pick-box').style.display='block';
+      showFlash('Found '+list.length+' unfulfilled orders - choose which to import','ok');
+    })
+    .catch(function(e){
+      showFlash('Shopify pull failed ('+(e && e.message ? e.message : 'could not reach the proxy')+') - your data is untouched; CSV import still works','err');
+    });
+}
+
+function shopifyPickImport() {
+  var cbs=document.querySelectorAll('.shopify-pick-cb');
+  var picked=[];
+  for(var i=0;i<cbs.length;i++){ if(cbs[i].checked) picked.push(pendingShopifyOrders[parseInt(cbs[i].getAttribute('data-idx'),10)]); }
+  if(!picked.length){ showFlash('No orders selected - nothing imported','warn'); return; }
+  document.getElementById('shopify-pick-box').style.display='none';
+  pendingShopifyOrders=null;
+  parseShopifyCSV(shopifyOrdersToCsv(picked));
+}
+
+function shopifyPickCancel() {
+  document.getElementById('shopify-pick-box').style.display='none';
+  pendingShopifyOrders=null;
+  showFlash('Shopify pull cancelled - nothing imported','warn');
+}
+
+function shopifyCell(v){ v=String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+
+function shopifyOrdersToCsv(list) {
+  var header=['Name','Email','Billing Name','Lineitem name','Lineitem quantity',
+    'Shipping Address1','Shipping Address2','Shipping City','Shipping Province','Shipping Zip',
+    'Billing Address1','Billing Address2','Billing City','Billing Province','Billing Zip'];
+  var rows=[header.join(',')];
+  list.forEach(function(o){
+    var ship=o.shipping_address||{}, bill=o.billing_address||{};
+    var cust=(bill.name||ship.name||(o.customer?((o.customer.first_name||'')+' '+(o.customer.last_name||'')).trim():'')||'');
+    var items=o.line_items||[];
+    if(!items.length) items=[{title:'',quantity:1}];
+    items.forEach(function(li,idx){
+      var itemName=li.title + (li.variant_title ? ' - '+li.variant_title : '');
+      // mirror the real Shopify export: only the first line-item row of an
+      // order carries the email / names / addresses
+      var first = idx===0;
+      rows.push([
+        o.name||'', first?(o.email||''):'', first?cust:'',
+        itemName, li.quantity||1,
+        first?(ship.address1||''):'', first?(ship.address2||''):'', first?(ship.city||''):'', first?(ship.province||ship.province_code||''):'', first?(ship.zip||''):'',
+        first?(bill.address1||''):'', first?(bill.address2||''):'', first?(bill.city||''):'', first?(bill.province||bill.province_code||''):'', first?(bill.zip||''):''
+      ].map(shopifyCell).join(','));
+    });
+  });
+  return rows.join('\n');
+}
+
 function parseShopifyCSV(text) {
   var lines = text.split('\n');
   if (lines.length < 2) {showFlash('CSV appears empty','err');return;}
@@ -1005,6 +1102,7 @@ function parseShopifyCSV(text) {
 
   var orderNumCol = col['name']!==undefined?col['name']:col['order'];
   var customerCol = col['billing name']!==undefined?col['billing name']:col['email'];
+  var emailCol = col['email'];
   var lineItemCol = col['lineitem name']!==undefined?col['lineitem name']:col['lineitem_name'];
   var qtyCol = col['lineitem quantity']!==undefined?col['lineitem quantity']:col['lineitem_quantity'];
 
@@ -1013,7 +1111,7 @@ function parseShopifyCSV(text) {
     return;
   }
 
-  var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0;
+  var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0, mergedThisImport=0;
   var unmatchedMap={};
   var newOrderData={};
 
@@ -1023,7 +1121,9 @@ function parseShopifyCSV(text) {
     var cols=parseCSVLine(line);
     if(!cols[orderNumCol]) continue;
     var orderNum=cols[orderNumCol].replace(/^#/,'').trim();
+    if (mergedOrders[orderNum]) { skippedOrders++; continue; } // v29: previously merged away - never resurrect
     var customer=customerCol!==undefined?(cols[customerCol]||'Unknown'):'Unknown';
+    var email=emailCol!==undefined?(cols[emailCol]||'').trim():'';
     var itemName=lineItemCol!==undefined?(cols[lineItemCol]||''):'';
     var qty=parseInt(cols[qtyCol]||'1',10)||1;
 
@@ -1043,7 +1143,7 @@ function parseShopifyCSV(text) {
     if (orders[orderNum]) { skippedOrders++; continue; }
 
     if(!newOrderData[orderNum]) {
-      newOrderData[orderNum]={customer:customer,address:rowAddr,items:[]}; newOrders++;
+      newOrderData[orderNum]={customer:customer,email:email,address:rowAddr,items:[]}; newOrders++;
     }
     var sku=shopifyNameToSKU(itemName);
     if(sku) {
@@ -1056,6 +1156,42 @@ function parseShopifyCSV(text) {
       unmatchedMap[itemName].push({orderNum:orderNum,customer:customer,qty:qty});
     }
   }
+
+  // v29: one customer, multiple NEW orders in this CSV -> offer to merge into
+  // one logical order (per-customer prompt). Yes combines items (readiness and
+  // ship status compute across the combined list, so a half-packed merge never
+  // shows shippable), keeps the lowest order number, one label set, one box
+  // count. mergedOrders remembers the decision so re-imports stay merged.
+  var byCust={};
+  Object.keys(newOrderData).forEach(function(num){
+    var o=newOrderData[num];
+    var key=(o.email || o.customer || '').toLowerCase().replace(/\s+/g,' ').trim();
+    if(!key || key==='unknown') return;
+    if(!byCust[key]) byCust[key]=[];
+    byCust[key].push(num);
+  });
+  Object.keys(byCust).forEach(function(key){
+    var nums=byCust[key];
+    if(nums.length<2) return;
+    nums.sort(function(a,b){ return (parseInt(a,10)||0)-(parseInt(b,10)||0); });
+    var dispName=titleCaseName(newOrderData[nums[0]].customer||'');
+    if(!confirm('This customer ('+dispName+') has '+nums.length+' orders in this import - merge them into one order? Items, readiness and labels will be combined under #'+nums[0]+'.')) return;
+    var keeper=nums[0];
+    for(var mi=1;mi<nums.length;mi++){
+      var srcNum=nums[mi], srcO=newOrderData[srcNum], dstO=newOrderData[keeper];
+      srcO.items.forEach(function(it){
+        var ex=dstO.items.find(function(x){return x.sku===it.sku;});
+        if(ex) ex.qtyOrdered+=it.qtyOrdered; else dstO.items.push(it);
+      });
+      if(!dstO.address && srcO.address) dstO.address=srcO.address;
+      mergedOrders[srcNum]=keeper;
+      delete newOrderData[srcNum];
+      mergedThisImport++;
+      Object.keys(unmatchedMap).forEach(function(nm){
+        unmatchedMap[nm].forEach(function(occ){ if(occ.orderNum===srcNum) occ.orderNum=keeper; });
+      });
+    }
+  });
 
   // Merge new orders into existing
   Object.keys(newOrderData).forEach(function(num){ orders[num]=newOrderData[num]; });
@@ -1078,6 +1214,7 @@ function parseShopifyCSV(text) {
   if(newOrders>0) statusParts.push(newOrders+' new added');
   if(skippedOrders>0) statusParts.push(skippedOrders+' duplicates skipped');
   if(addrUpdated>0) statusParts.push(addrUpdated+' addresses updated');
+  if(mergedThisImport>0) statusParts.push(mergedThisImport+' orders merged');
   statusParts.push(matched+' items matched');
   document.getElementById('csv-status').textContent=statusParts.join(' · ');
   document.getElementById('drop-zone').classList.remove('visible');
@@ -1318,22 +1455,58 @@ function renderExtras() {
 }
 
 // ── PACK ──────────────────────────────────────────────────
+// v29b: customer matching for pack flow - same rule as import merge (email
+// when present, else normalized name).
+function packCustKey(o){
+  var k=((o && (o.email || o.customer)) || '').toLowerCase().replace(/\s+/g,' ').trim();
+  return (k && k!=='unknown') ? k : '';
+}
+// Open sibling orders = same customer, not shipped, not fully packed, not
+// merged away at import.
+function findSiblingOpenOrders(num){
+  var o=orders[num]; if(!o) return [];
+  var key=packCustKey(o); if(!key) return [];
+  var out=[];
+  Object.keys(orders).forEach(function(n){
+    if(n===num || mergedOrders[n]) return;
+    var oo=orders[n];
+    if(!oo || oo.shipped || oo.packed) return;
+    if(packCustKey(oo)===key) out.push(n);
+  });
+  out.sort(function(a,b){ return (parseInt(a,10)||0)-(parseInt(b,10)||0); });
+  return out;
+}
+function orderFullyPacked(n){
+  var o=orders[n];
+  if(!o || !o.items || !o.items.length) return false;
+  return o.items.every(function(it){ return (it.qtyPacked||0) >= it.qtyOrdered; });
+}
+
 function loadOrder() {
   var inp=document.getElementById('order-input');
   var num=inp.value.trim().replace(/^#/,'');
   if(!num) return;
+  if(mergedOrders[num]){ var keep=mergedOrders[num]; showFlash('Order #'+num+' was merged into #'+keep+' at import — packing #'+keep+' instead','warn'); num=keep; }
   var od=orders[num];
   if(!od){showFlash(Object.keys(orders).length===0?'No orders loaded — drop your CSV first':'Order #'+num+' not found','err');return;}
-  currentOrder={num:num,customer:od.customer,items:od.items.map(function(i){return Object.assign({},i);})};
-  document.getElementById('h-order').textContent='#'+num;
+  // v29b: pull up ALL open orders for this customer so they pack together
+  var packNums=[num].concat(findSiblingOpenOrders(num));
+  var items=[];
+  packNums.forEach(function(n){
+    orders[n].items.forEach(function(i){ var c=Object.assign({},i); c.orderNum=n; items.push(c); });
+  });
+  currentOrder={num:num,nums:packNums,customer:od.customer,items:items,partialWarned:false};
+  document.getElementById('h-order').textContent='#'+packNums.join(' + #');
   document.getElementById('h-cust').textContent=od.customer;
-  document.getElementById('h-items').textContent=currentOrder.items.length+' items';
+  document.getElementById('h-items').textContent=currentOrder.items.length+' items'+(packNums.length>1?' across '+packNums.length+' orders':'');
   document.getElementById('h-status').textContent='Packing';
   document.getElementById('order-hdr').classList.add('vis');
   document.getElementById('pack-scan-wrap').style.display='block';
   document.getElementById('pack-empty').style.display='none';
   document.getElementById('ship-btn-wrap').style.display='none';
+  document.getElementById('ship-partial-wrap').style.display='none';
   renderPackList(); updateProgress();
+  if(packNums.length>1) showFlash('This customer has '+packNums.length+' open orders — packing #'+packNums.join(' + #')+' together','ok');
   setTimeout(function(){document.getElementById('pack-input').focus();},50);
 }
 
@@ -1353,7 +1526,7 @@ function packScan() {
   orderItem.qtyPacked++;
   packHistory.unshift({t:now(),sku:sku,name:orderItem.name,orderNum:currentOrder.num});
   // Save pack progress back to orders store
-  var storedOrder=orders[currentOrder.num];
+  var storedOrder=orders[orderItem.orderNum || currentOrder.num];
   if(storedOrder){
     var storedItem=storedOrder.items.find(function(i){return i.sku===sku;});
     if(storedItem) storedItem.qtyPacked=orderItem.qtyPacked;
@@ -1371,7 +1544,8 @@ function renderPackList() {
     var packed=item.qtyPacked>=item.qtyOrdered,partial=item.qtyPacked>0&&!packed;
     var cls=packed?'packed':partial?'partial':'missing';
     var icon=packed?'✅':partial?'⏳':'○';
-    return '<div class="pack-row '+cls+'"><div class="pack-dot">'+icon+'</div><div class="pack-info"><div class="pack-name">'+item.name+'</div><div class="pack-meta">'+item.size+' · '+item.sku+'</div></div><div class="pack-chip '+(packed?'done':'')+'">'+item.qtyPacked+' / '+item.qtyOrdered+'</div></div>';
+    var multi=currentOrder.nums && currentOrder.nums.length>1;
+    return '<div class="pack-row '+cls+'"><div class="pack-dot">'+icon+'</div><div class="pack-info"><div class="pack-name">'+item.name+'</div><div class="pack-meta">'+(multi?'#'+(item.orderNum||currentOrder.num)+' · ':'')+item.size+' · '+item.sku+'</div></div><div class="pack-chip '+(packed?'done':'')+'">'+item.qtyPacked+' / '+item.qtyOrdered+'</div></div>';
   }).join('');
 }
 
@@ -1381,35 +1555,90 @@ function updateProgress() {
   var packed=currentOrder.items.reduce(function(s,i){return s+Math.min(i.qtyPacked,i.qtyOrdered);},0);
   document.getElementById('prog-fill').style.width=(total>0?packed/total*100:0)+'%';
   document.getElementById('prog-text').textContent=packed+' of '+total+' items packed';
+  var nums=currentOrder.nums || [currentOrder.num];
   if(packed>=total&&total>0){
     document.getElementById('h-status').textContent='✅ Complete!';
     document.getElementById('ship-btn-wrap').style.display='block';
-    showFlash('Order #'+currentOrder.num+' for '+currentOrder.customer+' is fully packed — mark it shipped!','ok');
-    // Mark order as packed locally so FIFO excludes it from pool
-    if(orders[currentOrder.num]) orders[currentOrder.num].packed = true;
+    document.getElementById('ship-partial-wrap').style.display='none';
+    showFlash('Order #'+nums.join(' + #')+' for '+currentOrder.customer+' is fully packed — mark it shipped!','ok');
+    // Mark orders as packed locally so FIFO excludes them from the pool
+    nums.forEach(function(n){ if(orders[n]) orders[n].packed = true; });
     saveSession();
-    // Update Airtable to Ready Now
-    atSetOrderStatus(currentOrder.num, 'Ready Now', total, total);
+    // Update Airtable to Ready Now (per order, with its own totals)
+    nums.forEach(function(n){
+      var t=currentOrder.items.filter(function(i){return i.orderNum===n;}).reduce(function(st,i){return st+i.qtyOrdered;},0);
+      atSetOrderStatus(n, 'Ready Now', t, t);
+    });
     // Refresh order statuses so FIFO recalculates
     setTimeout(atUpdateOrderStatuses, 500);
   } else {
     document.getElementById('ship-btn-wrap').style.display='none';
+    // v29b: multi-order session where some orders are fully packed and others
+    // are not - warn and offer the intentional partial-ship path.
+    var wrap=document.getElementById('ship-partial-wrap');
+    if(nums.length>1){
+      var doneNums=nums.filter(function(n){ return orderFullyPacked(n); });
+      var notDone=nums.filter(function(n){ return !orderFullyPacked(n); });
+      if(doneNums.length && notDone.length){
+        wrap.style.display='block';
+        document.getElementById('h-status').textContent='⚠️ #'+doneNums.join(', #')+' packed — #'+notDone.join(', #')+' NOT packed';
+        if(!currentOrder.partialWarned){
+          currentOrder.partialWarned=true;
+          showFlash("Order #"+doneNums.join(', #')+" is fully packed but this customer's other order (#"+notDone.join(', #')+") isn't — pack it too, or use the orange button to ship only what's packed",'warn');
+        }
+      } else {
+        wrap.style.display='none';
+      }
+    } else {
+      wrap.style.display='none';
+    }
   }
+}
+
+// v29b: ship ONLY the fully packed order(s) in a multi-order session, leaving
+// the unpacked sibling(s) open. Requires an explicit confirm - this is the
+// "not shipping the other one?" safety net he asked for.
+function markPartialShipped() {
+  if(!currentOrder || !currentOrder.nums || currentOrder.nums.length<2) return;
+  var doneNums=currentOrder.nums.filter(function(n){ return orderFullyPacked(n); });
+  var notDone=currentOrder.nums.filter(function(n){ return !orderFullyPacked(n); });
+  if(!doneNums.length || !notDone.length) return;
+  if(!confirm("You didn't pack this customer's other order (#"+notDone.join(', #')+") - not shipping it?\n\nOK ships ONLY #"+doneNums.join(', #')+" and leaves #"+notDone.join(', #')+" open for later.")) return;
+  doneNums.forEach(function(n){
+    if(orders[n]) { orders[n].shipped=true; orders[n].packed=true; }
+    var t=orders[n]?orders[n].items.reduce(function(st,i){return st+i.qtyOrdered;},0):0;
+    atSetOrderStatus(n,'Shipped',t,t,true);
+  });
+  saveSession();
+  showFlash('Shipped #'+doneNums.join(', #')+' — #'+notDone.join(', #')+' still open','ok');
+  // Continue the session with just the remaining open order(s)
+  currentOrder.nums=notDone;
+  currentOrder.num=notDone[0];
+  currentOrder.items=currentOrder.items.filter(function(i){ return notDone.indexOf(i.orderNum)>=0; });
+  currentOrder.partialWarned=false;
+  document.getElementById('h-order').textContent='#'+notDone.join(' + #');
+  document.getElementById('h-items').textContent=currentOrder.items.length+' items'+(notDone.length>1?' across '+notDone.length+' orders':'');
+  document.getElementById('h-status').textContent='Packing';
+  document.getElementById('ship-partial-wrap').style.display='none';
+  renderPackList(); updateProgress();
+  if(mode==='cook') renderCookNext();
 }
 
 function markShipped() {
   if(!currentOrder) return;
-  var num = currentOrder.num;
-  if(!confirm('Mark Order #'+num+' for '+currentOrder.customer+' as SHIPPED?')) return;
-  // Mark in local orders store
-  if(orders[num]) { orders[num].shipped = true; orders[num].packed = true; }
+  var nums = currentOrder.nums || [currentOrder.num];
+  if(!confirm('Mark Order #'+nums.join(' + #')+' for '+currentOrder.customer+' as SHIPPED?')) return;
+  // Mark in local orders store + Airtable, per order
+  nums.forEach(function(n){
+    if(orders[n]) { orders[n].shipped = true; orders[n].packed = true; }
+    var t=currentOrder.items.filter(function(i){return i.orderNum===n;}).reduce(function(st,i){return st+i.qtyOrdered;},0);
+    atSetOrderStatus(n, 'Shipped', t, t, true);
+  });
   saveSession();
-  // Update Airtable
-  var total = currentOrder.items.reduce(function(s,i){return s+i.qtyOrdered;},0);
-  atSetOrderStatus(num, 'Shipped', total, total, true);
   document.getElementById('h-status').textContent='🚚 Shipped!';
   document.getElementById('ship-btn-wrap').style.display='none';
-  showFlash('Order #'+num+' marked as Shipped!','ok');
+  document.getElementById('ship-partial-wrap').style.display='none';
+  showFlash('Order #'+nums.join(' + #')+' marked as Shipped!','ok');
   // Refresh cook next if visible
   if(mode==='cook') renderCookNext();
 }
@@ -1862,8 +2091,17 @@ function renderLabelSheets(sheets) {
 }
 
 function expandItems(items) {
-  // items: [{sku,name,size,qty}] -> flat label list, alphabetical by name
-  items.sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;});
+  // items: [{sku,name,size,qty}] -> flat label list, grouped product by
+  // product: name, then variant (size), then sku - so every unit of one
+  // variant prints together (v31; order sequence no longer dictates order)
+  items.sort(function(a,b){
+    var an=a.name||'', bn=b.name||'';
+    if(an!==bn) return an<bn?-1:1;
+    var as=a.size||'', bs=b.size||'';
+    if(as!==bs) return as<bs?-1:1;
+    var ak=a.sku||'', bk=b.sku||'';
+    return ak<bk?-1:ak>bk?1:0;
+  });
   var list=[];
   items.forEach(function(it){ for(var i=0;i<it.qty;i++) list.push(it); });
   return list;
