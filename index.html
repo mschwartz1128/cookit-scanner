@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -161,6 +161,12 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .ready-name{font-weight:700;font-size:13px;color:var(--green);}
 .ready-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .ready-icon{font-size:20px;}
+.pk-alert-ov{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.pk-alert{background:#fff;border:4px solid #d00000;border-radius:16px;max-width:540px;width:100%;padding:38px 30px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45);}
+.pk-alert-icon{font-size:64px;line-height:1;margin-bottom:14px;}
+.pk-alert-title{font-size:28px;font-weight:800;color:#d00000;letter-spacing:.5px;margin-bottom:12px;}
+.pk-alert-msg{font-size:19px;line-height:1.4;color:#1a1a1a;margin-bottom:26px;}
+.pk-alert-btn{display:inline-block;padding:16px 44px;font-size:20px;font-weight:700;background:#d00000;color:#fff;border:none;border-radius:12px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -1324,6 +1330,17 @@ function showFlash(msg,type) {
   flashT=setTimeout(function(){el.className='flash';},5000);
 }
 
+// v32: wrong-item scan in Pack & Verify -> big centered modal, not a flash.
+function showPackAlert(title,msg){
+  document.getElementById('pk-alert-title').textContent=title;
+  document.getElementById('pk-alert-msg').textContent=msg;
+  document.getElementById('pk-alert-ov').style.display='flex';
+}
+function hidePackAlert(){
+  document.getElementById('pk-alert-ov').style.display='none';
+  var inp=document.getElementById('pack-input'); if(inp) inp.focus();
+}
+
 // ── PRODUCTION ────────────────────────────────────────────
 // ── UNDO LAST PRODUCTION SCAN ─────────────────────────────
 var lastProdScan = null;
@@ -1511,6 +1528,9 @@ function loadOrder() {
 }
 
 function packScan() {
+  // v32: while the wrong-item modal is up, a scan/Enter dismisses it and is NOT processed
+  var pkOv=document.getElementById('pk-alert-ov');
+  if(pkOv && pkOv.style.display==='flex'){hidePackAlert();return;}
   if(!currentOrder){showFlash('Load an order first','warn');return;}
   var inp=document.getElementById('pack-input');
   var sku=inp.value.trim().toUpperCase();
@@ -1519,7 +1539,8 @@ function packScan() {
   var orderItem=currentOrder.items.find(function(i){return i.sku===sku;});
   if(!orderItem){
     var gi=SKU_MAP[sku];
-    showFlash(gi?gi.name+' is NOT on Order #'+currentOrder.num+' — wrong box?':'Unknown barcode: "'+sku+'"','err');
+    if(gi) showPackAlert('WRONG ITEM', gi.name+' ('+sku+') is NOT on Order #'+currentOrder.num+' for '+currentOrder.customer+'. Check the label before it goes in a box.');
+    else showPackAlert('UNKNOWN BARCODE', '"'+sku+'" is not a Cook It item barcode. Nothing was packed.');
     return;
   }
   if(orderItem.qtyPacked>=orderItem.qtyOrdered){showFlash(orderItem.name+' already fully packed','warn');return;}
@@ -2511,6 +2532,14 @@ function renderLabelsPanel() {
 }
 
 </script>
+<div class="pk-alert-ov" id="pk-alert-ov" style="display:none;">
+  <div class="pk-alert">
+    <div class="pk-alert-icon">&#9888;&#65039;</div>
+    <div class="pk-alert-title" id="pk-alert-title"></div>
+    <div class="pk-alert-msg" id="pk-alert-msg"></div>
+    <button class="pk-alert-btn" onclick="hidePackAlert()">GOT IT</button>
+  </div>
+</div>
 </body>
 </html>
 
