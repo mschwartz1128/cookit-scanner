@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -162,6 +162,11 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 .ready-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .ready-icon{font-size:20px;}
 .pk-alert-ov{position:fixed;inset:0;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.ctoast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);z-index:9998;max-width:min(560px,88vw);padding:20px 30px;border-radius:14px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:26px;line-height:1.2;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;}
+.ctoast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+.ctoast.ok{background:#0c7a4d;color:#fff;}
+.ctoast.warn{background:#b45309;color:#fff;}
+.ctoast.err{background:#b91c1c;color:#fff;}
 .pk-alert{background:#fff;border:4px solid #d00000;border-radius:16px;max-width:540px;width:100%;padding:38px 30px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.45);}
 .pk-alert-icon{font-size:64px;line-height:1;margin-bottom:14px;}
 .pk-alert-title{font-size:28px;font-weight:800;color:#d00000;letter-spacing:.5px;margin-bottom:12px;}
@@ -195,6 +200,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 </div>
 
 <div class="flash" id="flash"></div>
+<div class="ctoast" id="ctoast"></div>
 
 <main>
   <!-- SESSION RESTORED BAR -->
@@ -1351,6 +1357,20 @@ function showFlash(msg,type) {
   flashT=setTimeout(function(){el.className='flash';},5000);
 }
 
+// v39: ALL scan feedback goes middle-of-screen (he scans with his eyes down -
+// the top flash is invisible in that posture). Big auto-fading toast: green
+// for good scans, amber for warnings, red for errors. Blocking alerts (wrong
+// item) stay as the v32 modal.
+var ctoastT=null;
+function showCenterToast(msg,type,holdMs){
+  var el=document.getElementById('ctoast');
+  if(!el){showFlash(msg,type);return;}
+  el.textContent=msg;
+  el.className='ctoast show '+(type||'ok');
+  clearTimeout(ctoastT);
+  ctoastT=setTimeout(function(){el.className='ctoast';}, holdMs||(type==='ok'?1400:2600));
+}
+
 // v32: wrong-item scan in Pack & Verify -> big centered modal, not a flash.
 function showPackAlert(title,msg){
   document.getElementById('pk-alert-title').textContent=title;
@@ -1413,7 +1433,7 @@ function prodScan() {
   inp.value=''; inp.focus();
   if(!sku) return;
   var item=SKU_MAP[sku];
-  if(!item){showFlash('Unknown barcode: "'+sku+'" — not in menu','err');return;}
+  if(!item){showCenterToast('Unknown barcode: "'+sku+'" - not in menu','err');return;}
   prodCount[sku].done++;
   scanCounts[sku]=(scanCounts[sku]||0)+1;
   prodHistory.unshift({t:now(),sku:sku,name:item.name,count:prodCount[sku].done});
@@ -1424,7 +1444,7 @@ function prodScan() {
   setTimeout(atUpdateOrderStatuses, 2000);
   if(mode==='cook') renderCookNext();
   var needed=prodCount[sku].needed,done=prodCount[sku].done;
-  showFlash(item.name+' — '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' ALL DONE!':''),'ok');
+  showCenterToast(item.name+' - '+done+(needed>0?' of '+needed:'')+' made'+(done>=needed&&needed>0?' - ALL DONE!':''),'ok');
   renderProdGrid(); updateProdStats(); renderProdHist();
 }
 
@@ -1564,7 +1584,7 @@ function packScan() {
     else showPackAlert('UNKNOWN BARCODE', '"'+sku+'" is not a Cook It item barcode. Nothing was packed.');
     return;
   }
-  if(orderItem.qtyPacked>=orderItem.qtyOrdered){showFlash(orderItem.name+' already fully packed','warn');return;}
+  if(orderItem.qtyPacked>=orderItem.qtyOrdered){showCenterToast(orderItem.name+' - ALREADY SCANNED ('+orderItem.qtyPacked+' of '+orderItem.qtyOrdered+')','warn');return;}
   orderItem.qtyPacked++;
   packHistory.unshift({t:now(),sku:sku,name:orderItem.name,orderNum:currentOrder.num});
   // Save pack progress back to orders store
@@ -1575,7 +1595,7 @@ function packScan() {
   }
   saveSession();
   var rem=orderItem.qtyOrdered-orderItem.qtyPacked;
-  showFlash(rem===0?orderItem.name+' — fully packed!':orderItem.name+' — '+orderItem.qtyPacked+'/'+orderItem.qtyOrdered+' ('+rem+' more)','ok');
+  showCenterToast(rem===0?orderItem.name+' - FULLY PACKED!':orderItem.name+' - '+orderItem.qtyPacked+' of '+orderItem.qtyOrdered+' done','ok');
   renderPackList(); updateProgress(); renderPackHist();
 }
 
@@ -1736,7 +1756,7 @@ function verifyScan(){
   if(verifyRemaining()===0){
     currentOrder.verifyDone=true;
     document.getElementById('verify-wrap').style.display='none';
-    showFlash('Verify pass complete - everything matches. Order can ship!','ok');
+    showCenterToast('Verify pass complete - everything matches. Order can ship!','ok',2600);
     updateProgress();
     return;
   }
