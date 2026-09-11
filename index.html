@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -299,6 +299,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
       <div id="ship-partial-wrap" style="display:none;margin-top:12px;">
         <button onclick="markPartialShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--orange);background:transparent;color:var(--orange);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">Ship packed order only</button>
         <span style="font-size:11px;color:var(--muted);margin-left:12px;">This customer has another open order that is NOT packed</span>
+      </div>
+      <div id="deliver-wrap" style="margin-top:12px;">
+        <button onclick="openDeliverModal()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--blue,#2563eb);background:transparent;color:var(--blue,#2563eb);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📤 Deliver packed items…</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px;">Sending part of the order now? Choose what leaves - the order keeps only what's still remaining</span>
       </div>
       <div id="ship-btn-wrap" style="display:none;margin-top:12px;">
         <button onclick="markShipped()" style="padding:10px 24px;border-radius:var(--r-sm);border:none;background:var(--green);color:#0a2016;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">✅ Mark as Shipped</button>
@@ -1517,7 +1521,7 @@ function loadOrder() {
   var packNums=[num].concat(findSiblingOpenOrders(num));
   var items=[];
   packNums.forEach(function(n){
-    orders[n].items.forEach(function(i){ var c=Object.assign({},i); c.orderNum=n; items.push(c); });
+    orders[n].items.forEach(function(i){ if((i.qtyOrdered||0)<=0) return; var c=Object.assign({},i); c.orderNum=n; items.push(c); });
   });
   currentOrder={num:num,nums:packNums,customer:od.customer,items:items,partialWarned:false};
   document.getElementById('h-order').textContent='#'+packNums.join(' + #');
@@ -1563,6 +1567,98 @@ function packScan() {
   var rem=orderItem.qtyOrdered-orderItem.qtyPacked;
   showFlash(rem===0?orderItem.name+' — fully packed!':orderItem.name+' — '+orderItem.qtyPacked+'/'+orderItem.qtyOrdered+' ('+rem+' more)','ok');
   renderPackList(); updateProgress(); renderPackHist();
+}
+
+// ── v36 PARTIAL DELIVERY / UN-SHIP ──────────────────────
+// Deliver flow: he packs part of an order, sends it out, and picks WHICH
+// packed items leave. Delivered units come off the order (qtyOrdered reduced,
+// qtyPacked reset, qtyDelivered tracked) so pulling the order up later shows
+// ONLY what is still remaining. The order stays OPEN - no shipped flag, so
+// this never trips the v34 ship-short path.
+// Un-ship: a "delivered" item the customer never got goes back onto the
+// remaining list AND into the v34 Still-owed ledger.
+function openDeliverModal() {
+  if(!currentOrder){showFlash('Load an order first','warn');return;}
+  var nums=currentOrder.nums || [currentOrder.num];
+  var packedRows='', deliveredRows='';
+  nums.forEach(function(n){
+    (orders[n]?orders[n].items:[]).forEach(function(it){
+      if((it.qtyPacked||0)>0){
+        packedRows+='<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;cursor:pointer;">'
+          +'<input type="checkbox" class="dlvr-cb" data-num="'+escHtml(n)+'" data-sku="'+escHtml(it.sku)+'" checked /> '
+          +'<span style="flex:1;">'+escHtml(it.name)+(it.size?' <span style=\'color:var(--muted);\'>('+escHtml(it.size)+')</span>':'')+(nums.length>1?' <span style=\'color:var(--muted);\'>#'+escHtml(n)+'</span>':'')+'</span>'
+          +'<b>'+it.qtyPacked+' of '+it.qtyOrdered+' packed</b></label>';
+      }
+      if((it.qtyDelivered||0)>0){
+        deliveredRows+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;">'
+          +'<span style="flex:1;">'+escHtml(it.name)+(it.size?' <span style=\'color:var(--muted);\'>('+escHtml(it.size)+')</span>':'')+(nums.length>1?' <span style=\'color:var(--muted);\'>#'+escHtml(n)+'</span>':'')+'</span>'
+          +'<span style="color:var(--muted);">'+it.qtyDelivered+' delivered</span>'
+          +'<button onclick="markOwedAgain(\''+escHtml(n)+'\',\''+escHtml(it.sku)+'\')" style="padding:4px 10px;border-radius:6px;border:1px solid #b45309;background:#fff;color:#b45309;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;">Owed again ↩</button></div>';
+      }
+    });
+  });
+  document.getElementById('dlvr-packed').innerHTML =
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:10px 0 4px;">Packed now - what is going out?</div>'
+    + (packedRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">Nothing packed yet.</div>');
+  document.getElementById('dlvr-delivered').innerHTML =
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:14px 0 4px;">Delivered earlier - came back / never arrived?</div>'
+    + (deliveredRows || '<div style="font-size:12px;color:var(--muted);padding:4px 0;">Nothing delivered yet.</div>');
+  document.getElementById('dlvr-ov').style.display='flex';
+}
+
+function hideDeliverModal(){ document.getElementById('dlvr-ov').style.display='none'; }
+
+function applyDeliverSelected() {
+  var cbs=document.querySelectorAll('.dlvr-cb');
+  var picked=[];
+  for(var i=0;i<cbs.length;i++) if(cbs[i].checked) picked.push({num:cbs[i].getAttribute('data-num'),sku:cbs[i].getAttribute('data-sku')});
+  if(!picked.length){ showFlash('Tick at least one item to deliver, or Cancel','warn'); return; }
+  var names=[];
+  picked.forEach(function(p){
+    var o=orders[p.num]; if(!o) return;
+    var it=o.items.find(function(x){return x.sku===p.sku;}); if(!it) return;
+    var d=it.qtyPacked||0; if(d<=0) return;
+    it.qtyDelivered=(it.qtyDelivered||0)+d;
+    it.qtyOrdered-=d;
+    it.qtyPacked=0;
+    names.push(d+'x '+it.name);
+    if(it.qtyOrdered<=0){
+      // fully delivered - drop it from the live session list too
+      currentOrder.items=currentOrder.items.filter(function(ci){return !(ci.sku===p.sku && (ci.orderNum||currentOrder.num)===p.num);});
+    } else {
+      var ci=currentOrder.items.find(function(x){return x.sku===p.sku && (x.orderNum||currentOrder.num)===p.num;});
+      if(ci){ ci.qtyOrdered=it.qtyOrdered; ci.qtyPacked=0; ci.qtyDelivered=it.qtyDelivered; }
+    }
+  });
+  if(!names.length){ hideDeliverModal(); return; }
+  saveSession();
+  hideDeliverModal();
+  renderPackList(); updateProgress();
+  setTimeout(atUpdateOrderStatuses, 400);
+  showFlash('Delivered: '+names.join(', ')+'. Order #'+ (currentOrder.nums||[currentOrder.num]).join(' + #')+' now shows only what is still remaining.','ok');
+}
+
+function markOwedAgain(num, sku) {
+  var o=orders[num]; if(!o) return;
+  var it=o.items.find(function(x){return x.sku===sku;}); if(!it||(it.qtyDelivered||0)<=0) return;
+  var q=parseInt(prompt('How many units of '+it.name+' are still owed to Order #'+num+'? (1-'+it.qtyDelivered+')','1'),10);
+  if(!q||q<1) return;
+  if(q>it.qtyDelivered) q=it.qtyDelivered;
+  it.qtyDelivered-=q;
+  it.qtyOrdered+=q;
+  // put it back on the live list if this order is loaded
+  if(currentOrder && (currentOrder.nums||[currentOrder.num]).indexOf(num)>=0){
+    var ci=currentOrder.items.find(function(x){return x.sku===sku && (x.orderNum||currentOrder.num)===num;});
+    if(ci){ ci.qtyOrdered=it.qtyOrdered; ci.qtyPacked=it.qtyPacked; ci.qtyDelivered=it.qtyDelivered; }
+    else { var c=Object.assign({},it); c.orderNum=num; currentOrder.items.push(c); }
+  }
+  owedItems.push({orderNum:num, customer:o.customer||'', items:[{name:it.name,size:it.size||'',qty:q}], reason:'Marked delivered/shipped but customer did not receive - still owed', at:new Date().toLocaleString()});
+  saveSession();
+  renderOwed();
+  openDeliverModal(); // re-render the modal with fresh numbers
+  renderPackList(); updateProgress();
+  setTimeout(atUpdateOrderStatuses, 400);
+  showFlash(q+'x '+it.name+' back on Order #'+num+' and logged in the Still-owed list','ok');
 }
 
 function renderPackList() {
@@ -2650,6 +2746,17 @@ function renderLabelsPanel() {
 }
 
 </script>
+<div class="pk-alert-ov" id="dlvr-ov" style="display:none;">
+  <div class="pk-alert" style="max-width:560px;width:100%;text-align:left;max-height:85vh;overflow-y:auto;">
+    <div class="pk-alert-title" style="text-align:center;">Deliver packed items</div>
+    <div id="dlvr-packed"></div>
+    <div id="dlvr-delivered"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="pk-alert-btn" onclick="applyDeliverSelected()">Remove checked from the order</button>
+      <button class="pk-alert-btn" style="background:#666;" onclick="hideDeliverModal()">Cancel</button>
+    </div>
+  </div>
+</div>
 <div class="pk-alert-ov" id="pk-alert-ov" style="display:none;">
   <div class="pk-alert">
     <div class="pk-alert-icon">&#9888;&#65039;</div>
