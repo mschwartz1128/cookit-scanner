@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v44 - Re-pull prompt for previously-sent orders (his rule, verbatim): fresh orders pull in full with no prompt; re-pull an order that already went out - fulfilled/partially-fulfilled in Shopify, or marked shipped / partially delivered in the scanner - and a prompt asks: re-pull the entire order, choose specific items, or skip it. The Shopify pull chooser also gains a per-order "choose items..." review link (manual, opt-in, any order) - former v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v45 - Airtable sync hardening (approved 2026-09-14): every Airtable call now goes through one queued pump that spaces requests under the 5/sec cap, coalesces per-scan count writes into batched flushes (~10x fewer calls), retries network/429/5xx failures automatically with backoff, and shows a persistent "N changes not synced - retrying" warning in the Airtable status pill plus a one-time center toast - a failed sync can never fail silently again; v45b: order Address now syncs to the Airtable Orders table (its own drop-safe PATCH like Items Remaining, so it fills the moment he adds the Address column - Airtable blocks API field creation) so delivery labels work cross-device - former v44 - Re-pull prompt for previously-sent orders (his rule, verbatim): fresh orders pull in full with no prompt; re-pull an order that already went out - fulfilled/partially-fulfilled in Shopify, or marked shipped / partially delivered in the scanner - and a prompt asks: re-pull the entire order, choose specific items, or skip it. The Shopify pull chooser also gains a per-order "choose items..." review link (manual, opt-in, any order) - former v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -548,10 +548,110 @@ const AT_HEADERS = {'Content-Type':'application/json'};
 // Map SKU -> Airtable record ID (populated on first sync)
 var atRecordIds = {};
 
+// ── v45 AIRTABLE SYNC QUEUE ─────────────────────────────
+// One pump for every Airtable call. Requests leave one at a time with a gap
+// under Airtable's 5/sec/base cap; per-scan count writes coalesce into
+// batched flushes (the ~10x call cut - the batch-sync fix); network errors,
+// 429s and 5xx retry automatically with backoff; and while ANYTHING is
+// unsynced the status pill says so, persistently - no more silent failures.
+var AT_REQ_GAP_MS = 260;   // <4 requests/sec
+var AT_FLUSH_MS   = 4000;  // scan-count batching window
+var atWriteQueue = [];     // FIFO of pending calls
+var atPumpTimer = null, atBackoffUntil = 0;
+var atOutageNotified = false, atLastError = '';
+
+// atRequest is a drop-in fetch replacement returning a JSON promise, so
+// existing .then chains keep working. meta.dropOn4xx: for writes to columns
+// he may not have created yet (Items Remaining, Address) - a 4xx there drops
+// quietly instead of retrying forever.
+function atRequest(url, opts, meta) {
+  meta = meta || {};
+  return new Promise(function(resolve, reject) {
+    atWriteQueue.push({url:url, opts:opts, resolve:resolve, reject:reject, tries:0, label:meta.label||'', dropOn4xx:!!meta.dropOn4xx});
+    atSyncStatus();
+    atPump();
+  });
+}
+function atPump() {
+  if (atPumpTimer) return;
+  atPumpTimer = setTimeout(atPumpStep, 0);
+}
+function atPumpStep() {
+  atPumpTimer = null;
+  if (Date.now() < atBackoffUntil) { atPumpTimer = setTimeout(atPumpStep, atBackoffUntil - Date.now()); return; }
+  var job = atWriteQueue[0];
+  if (!job) { atSyncStatus(); return; }
+  fetch(job.url, job.opts).then(function(r) {
+    if (r.ok) {
+      atWriteQueue.shift();
+      job.resolve(r.json().catch(function(){ return {}; }));
+    } else if (r.status === 429 || r.status >= 500) {
+      job.tries++;
+      atBackoffUntil = Date.now() + Math.min(60000, 4000 * job.tries);
+      atNoteOutage('Airtable busy (HTTP ' + r.status + ')');
+    } else {
+      atWriteQueue.shift();
+      r.text().then(function(t){ console.warn('AT call dropped (' + r.status + ') [' + job.label + ']:', t.slice(0, 200)); });
+      if (job.dropOn4xx) job.resolve({}); else { atNoteOutage('Airtable rejected a write (HTTP ' + r.status + ')'); job.reject(new Error('Airtable HTTP ' + r.status)); }
+    }
+    atSyncStatus();
+    atPumpTimer = setTimeout(atPumpStep, AT_REQ_GAP_MS);
+  }).catch(function(e) {
+    job.tries++;
+    atBackoffUntil = Date.now() + Math.min(60000, 4000 * job.tries);
+    atNoteOutage(e && e.message ? e.message : 'network problem');
+    atSyncStatus();
+    atPumpTimer = setTimeout(atPumpStep, AT_REQ_GAP_MS);
+  });
+}
+function atNoteOutage(why) {
+  atLastError = why;
+  if (!atOutageNotified) {
+    atOutageNotified = true;
+    showCenterToast('Airtable sync problem (' + why + ') - your counts are SAFE on this device; sync keeps retrying by itself', 'err', 7000);
+  }
+}
+function atSyncStatus() {
+  var el = document.getElementById('at-status');
+  if (!el) return;
+  var n = atWriteQueue.length;
+  if (n > 0) {
+    el.textContent = '\u26A0 ' + n + ' change' + (n > 1 ? 's' : '') + ' not synced yet - retrying automatically (data safe on this device)';
+    el.style.color = 'var(--orange)';
+  } else {
+    atOutageNotified = false;
+    el.textContent = '\u2705 Airtable connected';
+    el.style.color = 'var(--green)';
+  }
+}
+
+// v45: per-scan writes coalesce. A scan marks its SKU dirty; one flush every
+// few seconds pushes ALL dirty SKUs in batched PATCHes of 10 - dozens of
+// scans cost 1-2 calls instead of dozens. Dirty flags clear only on success.
+var atDirtySkus = {}, atSkuFlushTimer = null;
+function scheduleSkuFlush(immediate) {
+  if (atSkuFlushTimer) return;
+  atSkuFlushTimer = setTimeout(function() { atSkuFlushTimer = null; atFlushSkuCounts(); }, immediate ? 0 : AT_FLUSH_MS);
+}
+function atFlushSkuCounts() {
+  var skus = Object.keys(atDirtySkus).filter(function(s){ return atRecordIds[s]; });
+  if (!skus.length) return;
+  for (var i = 0; i < skus.length; i += 10) {
+    (function(batch) {
+      var records = batch.map(function(s) {
+        var done = prodCount[s].done, needed = prodCount[s].needed;
+        return {id: atRecordIds[s], fields: {Done: done, Needed: needed, 'Still Need': Math.max(0, needed - done)}};
+      });
+      atRequest(AT_URL, {method:'PATCH', headers:AT_HEADERS, body:JSON.stringify({records: records})}, {label:'item counts'})
+        .then(function(){ batch.forEach(function(s){ delete atDirtySkus[s]; }); })
+        .catch(function(){ /* stays dirty - retried on the next flush */ });
+    })(skus.slice(i, i + 10));
+  }
+}
+
 // Initialize Airtable table with all SKUs on first load
 function atInit() {
-  fetch(AT_URL + '?maxRecords=500', {headers:AT_HEADERS})
-    .then(function(r){return r.json();})
+  atRequest(AT_URL + '?maxRecords=500', {headers:AT_HEADERS}, {label:'init read'})
     .then(function(data) {
       if (!data.records) return;
       // Build SKU -> record ID map from existing records
@@ -571,7 +671,7 @@ function atInit() {
         for (var si = 0; si < stale.length; si += 10) {
           var sbatch = stale.slice(si, si + 10);
           var squery = sbatch.map(function(id){ return 'records[]=' + id; }).join('&');
-          fetch(AT_URL + '?' + squery, {method:'DELETE', headers:AT_HEADERS})
+          atRequest(AT_URL + '?' + squery, {method:'DELETE', headers:AT_HEADERS}, {label:'stale sku purge', dropOn4xx:true})
             .catch(function(e){ console.warn('AT stale purge failed:', e); });
         }
         stale.forEach(function(id){
@@ -604,8 +704,7 @@ function atInit() {
           var records = batch.map(function(s) {
             return {fields:{SKU:s.sku,'Item Name':s.name,Category:s.cat,Needed:0,Done:0,'Still Need':0}};
           });
-          return fetch(AT_URL, {method:'POST',headers:AT_HEADERS,body:JSON.stringify({records:records})})
-            .then(function(r){return r.json();})
+          return atRequest(AT_URL, {method:'POST',headers:AT_HEADERS,body:JSON.stringify({records:records})}, {label:'create sku rows'})
             .then(function(data) {
               if (data.records) data.records.forEach(function(rec){
                 if (rec.fields && rec.fields.SKU) atRecordIds[rec.fields.SKU] = rec.id;
@@ -635,37 +734,16 @@ function atInit() {
 }
 
 function atPushScan(sku) {
-  var recId = atRecordIds[sku];
-  if (!recId) return;
-  var done = prodCount[sku].done;
-  var needed = prodCount[sku].needed;
-  var stillNeed = Math.max(0, needed - done);
-  fetch(AT_URL + '/' + recId, {
-    method: 'PATCH',
-    headers: AT_HEADERS,
-    body: JSON.stringify({fields:{Done:done,Needed:needed,'Still Need':stillNeed}})
-  }).catch(function(e){console.warn('AT scan push failed:', e);});
+  if (!atRecordIds[sku]) return;
+  atDirtySkus[sku] = true;
+  scheduleSkuFlush();
 }
 
 function atPushAllCounts() {
-  var updates = SKUS.filter(function(s){
-    return atRecordIds[s.sku] && (prodCount[s.sku].done > 0 || prodCount[s.sku].needed > 0);
+  SKUS.forEach(function(s){
+    if (atRecordIds[s.sku] && (prodCount[s.sku].done > 0 || prodCount[s.sku].needed > 0)) atDirtySkus[s.sku] = true;
   });
-  if (updates.length === 0) return;
-  // Batch update in groups of 10
-  for (var i=0; i<updates.length; i+=10) {
-    var batch = updates.slice(i,i+10);
-    var records = batch.map(function(s) {
-      var done = prodCount[s.sku].done;
-      var needed = prodCount[s.sku].needed;
-      return {id:atRecordIds[s.sku], fields:{Done:done, Needed:needed, 'Still Need':Math.max(0,needed-done)}};
-    });
-    fetch(AT_URL, {
-      method: 'PATCH',
-      headers: AT_HEADERS,
-      body: JSON.stringify({records:records})
-    }).catch(function(e){console.warn('AT batch push failed:', e);});
-  }
+  scheduleSkuFlush(true);
 }
 
 // Push all orders to Airtable Orders table
@@ -673,8 +751,7 @@ function atSyncOrders() {
   if (Object.keys(orders).length === 0) return;
 
   // First fetch existing order records
-  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
-    .then(function(r){ return r.json(); })
+  atRequest(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS}, {label:'orders read'})
     .then(function(data) {
       // Build map of existing order numbers -> record IDs
       if (data.records) {
@@ -716,12 +793,11 @@ function atSyncOrders() {
               'Items Ready': 0
             }};
           });
-          return fetch(AT_ORDERS_URL, {
+          return atRequest(AT_ORDERS_URL, {
             method: 'POST',
             headers: AT_HEADERS,
             body: JSON.stringify({records: records})
-          })
-          .then(function(r){ return r.json(); })
+          }, {label:'create order rows'})
           .then(function(data) {
             if (data.records) {
               data.records.forEach(function(rec) {
@@ -736,7 +812,7 @@ function atSyncOrders() {
 
       chain.then(function() {
         atUpdateOrderStatuses();
-      });
+      }).catch(function(e){ console.warn('AT orders sync error:', e); });
     })
     .catch(function(e){ console.warn('AT orders sync error:', e); });
 }
@@ -765,11 +841,11 @@ function atUpdateOrderStatuses() {
   // Batch update in groups of 10
   for (var i = 0; i < updates.length; i += 10) {
     var batch = updates.slice(i, i + 10);
-    fetch(AT_ORDERS_URL, {
+    atRequest(AT_ORDERS_URL, {
       method: 'PATCH',
       headers: AT_HEADERS,
       body: JSON.stringify({records: batch})
-    }).catch(function(e){ console.warn('AT order status update failed:', e); });
+    }, {label:'order statuses'}).catch(function(e){ console.warn('AT order status update failed:', e); });
   }
 
   // Items Remaining goes in its own PATCH: if the column does not exist in
@@ -777,19 +853,36 @@ function atUpdateOrderStatuses() {
   // sync is unaffected. It starts filling the moment the column exists.
   for (var j = 0; j < remainingUpdates.length; j += 10) {
     var rbatch = remainingUpdates.slice(j, j + 10);
-    fetch(AT_ORDERS_URL, {
+    atRequest(AT_ORDERS_URL, {
       method: 'PATCH',
       headers: AT_HEADERS,
       body: JSON.stringify({records: rbatch})
-    }).catch(function(e){ console.warn('AT Items Remaining update failed (column exists?):', e); });
+    }, {label:'items remaining', dropOn4xx:true}).catch(function(e){ console.warn('AT Items Remaining update failed (column exists?):', e); });
+  }
+
+  // v45b: Address syncs the same drop-safe way, so delivery labels work from
+  // any device once he adds the "Address" column to the Orders table (30
+  // seconds, manual - Airtable blocks field creation via API).
+  var addressUpdates = [];
+  Object.keys(orders).forEach(function(num) {
+    var recId = atOrderRecordIds[num];
+    if (!recId || !orders[num].address) return;
+    addressUpdates.push({id: recId, fields: {'Address': orders[num].address}});
+  });
+  for (var k = 0; k < addressUpdates.length; k += 10) {
+    var abatch = addressUpdates.slice(k, k + 10);
+    atRequest(AT_ORDERS_URL, {
+      method: 'PATCH',
+      headers: AT_HEADERS,
+      body: JSON.stringify({records: abatch})
+    }, {label:'order addresses', dropOn4xx:true}).catch(function(e){ console.warn('AT Address update failed (column exists?):', e); });
   }
 }
 
 // Clear orders from Airtable — fetch all records first then delete
 function atClearOrders() {
   // Always fetch from Airtable first in case local map is empty
-  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
-    .then(function(r){ return r.json(); })
+  atRequest(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS}, {label:'orders read (clear)'})
     .then(function(data) {
       if (!data.records || data.records.length === 0) return;
       var recIds = data.records.map(function(r){ return r.id; });
@@ -797,10 +890,10 @@ function atClearOrders() {
       for (var i = 0; i < recIds.length; i += 10) {
         var batch = recIds.slice(i, i + 10);
         var query = batch.map(function(id){ return 'records[]=' + id; }).join('&');
-        fetch(AT_ORDERS_URL + '?' + query, {
+        atRequest(AT_ORDERS_URL + '?' + query, {
           method: 'DELETE',
           headers: AT_HEADERS
-        }).catch(function(e){ console.warn('AT order delete failed:', e); });
+        }, {label:'clear order rows', dropOn4xx:true}).catch(function(e){ console.warn('AT order delete failed:', e); });
       }
       atOrderRecordIds = {};
     })
@@ -816,11 +909,11 @@ function atClearAll() {
     var records = batch.map(function(sku) {
       return {id:atRecordIds[sku], fields:{Done:0, Needed:0, 'Still Need':0}};
     });
-    fetch(AT_URL, {
+    atRequest(AT_URL, {
       method: 'PATCH',
       headers: AT_HEADERS,
       body: JSON.stringify({records:records})
-    }).catch(function(e){console.warn('AT clear failed:', e);});
+    }, {label:'clear counts'}).catch(function(e){console.warn('AT clear failed:', e);});
   }
   updateAtStatus('✅ Airtable cleared', 'var(--green)');
 }
@@ -2165,7 +2258,7 @@ function markShipped() {
 function atSetOrderStatus(orderNum, status, totalItems, itemsReady, shipped) {
   var recId = atOrderRecordIds[orderNum];
   if(!recId) return;
-  fetch(AT_ORDERS_URL + '/' + recId, {
+  atRequest(AT_ORDERS_URL + '/' + recId, {
     method: 'PATCH',
     headers: AT_HEADERS,
     body: JSON.stringify({fields:{
@@ -2174,13 +2267,13 @@ function atSetOrderStatus(orderNum, status, totalItems, itemsReady, shipped) {
       'Items Ready': itemsReady,
       'Shipped': shipped || false
     }})
-  }).catch(function(e){ console.warn('AT order status failed:', e); });
+  }, {label:'order status'}).catch(function(e){ console.warn('AT order status failed:', e); });
   // Terminal states (fully packed / shipped) have nothing remaining
-  fetch(AT_ORDERS_URL + '/' + recId, {
+  atRequest(AT_ORDERS_URL + '/' + recId, {
     method: 'PATCH',
     headers: AT_HEADERS,
     body: JSON.stringify({fields:{'Items Remaining': ''}})
-  }).catch(function(e){ console.warn('AT Items Remaining clear failed (column exists?):', e); });
+  }, {label:'items remaining clear', dropOn4xx:true}).catch(function(e){ console.warn('AT Items Remaining clear failed (column exists?):', e); });
 }
 
 function renderPackHist() {
@@ -2927,8 +3020,7 @@ function fetchDeliveryOrders(manual) {
   var el = document.getElementById('dl-order-list');
   if(!el) return;
   el.innerHTML = '<span style="font-size:11px;color:var(--muted);">Loading orders from Airtable...</span>';
-  fetch(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS})
-    .then(function(r){ return r.json(); })
+  atRequest(AT_ORDERS_URL + '?maxRecords=500', {headers: AT_HEADERS}, {label:'delivery list read'})
     .then(function(data){
       if(!data.records){ el.innerHTML = '<span style="font-size:11px;color:var(--orange);">Could not load orders from Airtable.</span>'; return; }
       dlOrders = data.records
