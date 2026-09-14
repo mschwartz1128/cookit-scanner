@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v44 - Re-pull prompt for previously-sent orders (his rule, verbatim): fresh orders pull in full with no prompt; re-pull an order that already went out - fulfilled/partially-fulfilled in Shopify, or marked shipped / partially delivered in the scanner - and a prompt asks: re-pull the entire order, choose specific items, or skip it. The Shopify pull chooser also gains a per-order "choose items..." review link (manual, opt-in, any order) - former v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -588,7 +588,9 @@ function atInit() {
         updateAtStatus('✅ Airtable connected', 'var(--green)');
         // Boot fix: populate atOrderRecordIds + push current order statuses on
         // every load, not just after CSV import or SKU-table changes.
-        if (Object.keys(orders).length > 0) atSyncOrders();
+        // v44b: push the item counts too, or a plain reload after an Airtable
+        // outage backfills order statuses but leaves Done/Still Need stale.
+        if (Object.keys(orders).length > 0) { atSyncOrders(); atPushAllCounts(); }
         return;
       }
 
@@ -1072,6 +1074,7 @@ function shopifyPull() {
           +'<input type="checkbox" class="shopify-pick-cb" data-idx="'+i+'" checked>'
           +'<strong>#'+escHtml(num)+'</strong> '+escHtml(titleCaseName(cust)||'(no name)')
           +(known?' <span style="font-size:11px;color:var(--muted);">- already loaded, will only fill gaps</span>':' <span style="font-size:11px;color:var(--green);">- new</span>')
+          +' <a href="#" onclick="repullPickFromChooser('+i+');return false;" style="font-size:11px;">choose items...</a>'
           +'</label>';
       }).join('');
       document.getElementById('shopify-pick-box').style.display='block';
@@ -1098,10 +1101,16 @@ function shopifyPickCancel() {
   showFlash('Shopify pull cancelled - nothing imported','warn');
 }
 
+function shopifyFulfillmentLabel(o){
+  var s=String((o&&o.fulfillment_status)||'').toLowerCase();
+  return s==='fulfilled'?'fulfilled':(s==='partial'?'partial':'unfulfilled');
+}
+
 function shopifyCell(v){ v=String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 
 function shopifyOrdersToCsv(list) {
   var header=['Name','Email','Billing Name','Lineitem name','Lineitem quantity',
+    'Fulfillment Status',
     'Shipping Address1','Shipping Address2','Shipping City','Shipping Province','Shipping Zip',
     'Billing Address1','Billing Address2','Billing City','Billing Province','Billing Zip'];
   var rows=[header.join(',')];
@@ -1118,6 +1127,7 @@ function shopifyOrdersToCsv(list) {
       rows.push([
         o.name||'', first?(o.email||''):'', first?cust:'',
         itemName, li.quantity||1,
+        first?shopifyFulfillmentLabel(o):'',
         first?(ship.address1||''):'', first?(ship.address2||''):'', first?(ship.city||''):'', first?(ship.province||ship.province_code||''):'', first?(ship.zip||''):'',
         first?(bill.address1||''):'', first?(bill.address2||''):'', first?(bill.city||''):'', first?(bill.province||bill.province_code||''):'', first?(bill.zip||''):''
       ].map(shopifyCell).join(','));
@@ -1144,9 +1154,10 @@ function parseShopifyCSV(text) {
     return;
   }
 
-  var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0, mergedThisImport=0;
+  var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0;
   var unmatchedMap={};
   var newOrderData={};
+  var rawOrderItems={}, shopifyStatusByOrder={}; // v44: per-order file contents + Shopify fulfillment status, for the re-pull prompt
 
   for (var i=1;i<lines.length;i++) {
     var line=lines[i].trim();
@@ -1170,6 +1181,13 @@ function parseShopifyCSV(text) {
       else if(newOrderData[orderNum] && !newOrderData[orderNum].address){ newOrderData[orderNum].address=rowAddr; }
     }
 
+    // v44: remember every row's raw item + Shopify fulfillment status for this
+    // order, so a previously-sent order can prompt before anything imports.
+    if(!rawOrderItems[orderNum]) rawOrderItems[orderNum]=[];
+    if(itemName) rawOrderItems[orderNum].push({name:itemName,qty:qty,sku:shopifyNameToSKU(itemName)});
+    var fsIdx=col['fulfillment status'];
+    if(fsIdx!==undefined && cols[fsIdx] && !shopifyStatusByOrder[orderNum]) shopifyStatusByOrder[orderNum]=String(cols[fsIdx]).trim().toLowerCase();
+
     if(!itemName) continue;
 
     // Skip if order already exists
@@ -1190,6 +1208,22 @@ function parseShopifyCSV(text) {
     }
   }
 
+  // ── v44: previously-sent orders ask before anything re-pulls ──
+  var repullFlags=collectRepullFlags(newOrderData,rawOrderItems,shopifyStatusByOrder);
+  if(repullFlags.length){
+    pendingImportCtx={newOrderData:newOrderData,unmatchedMap:unmatchedMap,rawOrderItems:rawOrderItems,
+      newOrders:newOrders,skippedOrders:skippedOrders,matched:matched,addrUpdated:addrUpdated};
+    startRepullQueue(repullFlags);
+    return;
+  }
+  finishShopifyImport(newOrderData,unmatchedMap,{newOrders:newOrders,skippedOrders:skippedOrders,matched:matched,addrUpdated:addrUpdated});
+}
+
+// Finalize an import after any re-pull decisions are made (or immediately,
+// when nothing in the file was sent before).
+function finishShopifyImport(newOrderData,unmatchedMap,ctr){
+  forceRepullPrompt={};
+  var mergedThisImport=0;
   // v29: one customer, multiple NEW orders in this CSV -> offer to merge into
   // one logical order (per-customer prompt). Yes combines items (readiness and
   // ship status compute across the combined list, so a half-packed merge never
@@ -1243,26 +1277,174 @@ function parseShopifyCSV(text) {
   document.getElementById('orders-loaded-txt').style.color='var(--green)';
   document.getElementById('session-bar').classList.remove('visible');
 
+  ctr.newOrders=Object.keys(newOrderData).length;
   var statusParts=[orderCount+' orders total'];
-  if(newOrders>0) statusParts.push(newOrders+' new added');
-  if(skippedOrders>0) statusParts.push(skippedOrders+' duplicates skipped');
-  if(addrUpdated>0) statusParts.push(addrUpdated+' addresses updated');
+  if(ctr.newOrders>0) statusParts.push(ctr.newOrders+' new added');
+  if(ctr.skippedOrders>0) statusParts.push(ctr.skippedOrders+' duplicates skipped');
+  if(ctr.addrUpdated>0) statusParts.push(ctr.addrUpdated+' addresses updated');
   if(mergedThisImport>0) statusParts.push(mergedThisImport+' orders merged');
-  statusParts.push(matched+' items matched');
+  if(repullAppliedCount>0) statusParts.push(repullAppliedCount+' re-pulled');
+  statusParts.push(ctr.matched+' items matched');
   document.getElementById('csv-status').textContent=statusParts.join(' · ');
   document.getElementById('drop-zone').classList.remove('visible');
 
   if(pendingUnmatched.length>0) {
     showUnmatchedBox();
-    showFlash('Loaded — '+newOrders+' new orders added, '+skippedOrders+' duplicates skipped, '+pendingUnmatched.length+' items need manual matching below','warn');
+    showFlash('Loaded — '+ctr.newOrders+' new orders added, '+ctr.skippedOrders+' duplicates skipped, '+pendingUnmatched.length+' items need manual matching below','warn');
   } else {
     document.getElementById('unmatched-box').classList.remove('visible');
-    var msg='Loaded — '+newOrders+' new orders added';
-    if(skippedOrders>0) msg+=', '+skippedOrders+' duplicate orders skipped';
+    var msg='Loaded — '+ctr.newOrders+' new orders added';
+    if(ctr.skippedOrders>0) msg+=', '+ctr.skippedOrders+' duplicate orders skipped';
+    if(repullAppliedCount>0) msg+=', '+repullAppliedCount+' order(s) re-pulled';
     showFlash(msg,'ok');
   }
 
   renderProdGrid(); updateProdStats();
+}
+
+// ── v44 RE-PULL PROMPT FOR PREVIOUSLY-SENT ORDERS ─────────────────
+// His rule, verbatim: an order that was never sent pulls in full, no
+// questions. Re-pull an order that already went out - Shopify says
+// fulfilled/partially fulfilled, or the scanner marked it shipped or recorded
+// delivered items - and the app stops and asks: re-pull the entire order,
+// choose specific items, or skip it. Progress on orders he skips is never
+// touched. A re-pulled item is requeued as fresh work (qtyPacked reset);
+// its delivery history (qtyDelivered) is kept.
+var pendingImportCtx=null;
+var repullQueue=[], repullCurrent=null;
+var repullAppliedCount=0;
+var forceRepullPrompt={}; // order numbers he manually flagged "choose items..." in the pull chooser
+
+function orderSentEvidence(num, shopifyStatus){
+  var reasons=[];
+  var s=String(shopifyStatus||'').toLowerCase();
+  if(s==='fulfilled'||s==='partial'||s==='partially fulfilled') reasons.push('Shopify says '+(s==='partial'?'partially fulfilled':s));
+  var o=orders[num];
+  if(o){
+    if(o.shipped) reasons.push('scanner has it marked shipped');
+    var del=0;
+    o.items.forEach(function(it){ del+=(it.qtyDelivered||0); });
+    if(del>0) reasons.push('scanner shows '+del+' item(s) already delivered');
+  }
+  if(forceRepullPrompt[num]) reasons.push('you asked to review it in the pull list');
+  return reasons;
+}
+
+function collectRepullFlags(newOrderData, rawOrderItems, shopifyStatusByOrder){
+  var flagged=[];
+  Object.keys(rawOrderItems).forEach(function(num){
+    if(mergedOrders[num]) return; // merged-away orders never resurrect
+    var reasons=orderSentEvidence(num, shopifyStatusByOrder[num]);
+    if(!reasons.length) return; // never sent -> full pull, no prompt (his rule)
+    flagged.push({
+      num:num,
+      customer:(newOrderData[num]&&newOrderData[num].customer)||(orders[num]&&orders[num].customer)||'',
+      reasons:reasons
+    });
+  });
+  return flagged;
+}
+
+function startRepullQueue(flagged){
+  repullQueue=flagged.slice();
+  showNextRepull();
+}
+
+function showNextRepull(){
+  if(!repullQueue.length){
+    document.getElementById('repull-ov').style.display='none';
+    var ctx=pendingImportCtx; pendingImportCtx=null;
+    finishShopifyImport(ctx.newOrderData,ctx.unmatchedMap,ctx);
+    return;
+  }
+  repullCurrent=repullQueue[0];
+  document.getElementById('repull-title').textContent='Re-pull order #'+repullCurrent.num+'?';
+  document.getElementById('repull-sub').textContent=(repullCurrent.customer?repullCurrent.customer+' - ':'')+'This order was sent before ('+repullCurrent.reasons.join('; ')+').';
+  document.getElementById('repull-stage1').style.display='block';
+  document.getElementById('repull-stage2').style.display='none';
+  document.getElementById('repull-ov').style.display='flex';
+}
+
+function repullDecide(action){
+  var cur=repullCurrent; if(!cur) return;
+  if(action==='pick'){ renderRepullPick(cur); return; }
+  if(action==='entire'){ applyRepullToOrder(cur.num,null); }
+  // 'skip' falls through: nothing imports for this order
+  if(action==='skip' && pendingImportCtx.newOrderData[cur.num]) delete pendingImportCtx.newOrderData[cur.num];
+  repullQueue.shift();
+  showNextRepull();
+}
+
+function renderRepullPick(cur){
+  var raw=(pendingImportCtx.rawOrderItems[cur.num]||[]);
+  var bySku={}, order=[], unmatched=0;
+  raw.forEach(function(r){
+    if(!r.sku){ unmatched++; return; }
+    if(!bySku[r.sku]){ bySku[r.sku]={sku:r.sku,name:SKU_MAP[r.sku].name,size:SKU_MAP[r.sku].size,qty:0}; order.push(r.sku); }
+    bySku[r.sku].qty+=r.qty;
+  });
+  var html=order.map(function(sku){
+    var it=bySku[sku];
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px;cursor:pointer;">'
+      +'<input type="checkbox" class="repull-cb" data-sku="'+escHtml(sku)+'">'
+      +'<span style="flex:1;">'+escHtml(it.name)+(it.size?' <span style="color:var(--muted);">('+escHtml(it.size)+')</span>':'')+'</span><b>x'+it.qty+'</b></label>';
+  }).join('');
+  if(unmatched>0) html+='<div style="font-size:12px;color:var(--muted);padding-top:6px;">'+unmatched+' item(s) need manual matching after import and are not listed here.</div>';
+  document.getElementById('repull-items').innerHTML=html||'<div style="font-size:13px;color:var(--muted);">No matchable items on this order.</div>';
+  document.getElementById('repull-stage1').style.display='none';
+  document.getElementById('repull-stage2').style.display='block';
+}
+
+function repullApplyPicked(){
+  var cur=repullCurrent; if(!cur) return;
+  var cbs=document.querySelectorAll('.repull-cb'), skus=[];
+  for(var i=0;i<cbs.length;i++) if(cbs[i].checked) skus.push(cbs[i].getAttribute('data-sku'));
+  if(!skus.length){ showFlash('Nothing ticked - order #'+cur.num+' skipped','warn'); if(pendingImportCtx.newOrderData[cur.num]) delete pendingImportCtx.newOrderData[cur.num]; }
+  else applyRepullToOrder(cur.num,skus);
+  repullQueue.shift();
+  showNextRepull();
+}
+
+// Requeue the file's items for a previously-sent order. pickedSkus=null means
+// the entire order. Existing local progress on OTHER items is untouched; a
+// re-pulled item is reset to fresh (qtyPacked 0) with its file quantity, and
+// qtyDelivered history is preserved.
+function applyRepullToOrder(num, pickedSkus){
+  var raw=(pendingImportCtx.rawOrderItems[num]||[]);
+  var wanted={}, seq=[];
+  raw.forEach(function(r){
+    if(!r.sku) return;
+    if(pickedSkus && pickedSkus.indexOf(r.sku)<0) return;
+    if(wanted[r.sku]===undefined){ wanted[r.sku]=0; seq.push(r.sku); }
+    wanted[r.sku]+=r.qty;
+  });
+  var o=orders[num];
+  if(o){
+    seq.forEach(function(sku){
+      var it=o.items.find(function(x){return x.sku===sku;});
+      if(it){ it.qtyOrdered=wanted[sku]; it.qtyPacked=0; }
+      else o.items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:wanted[sku],qtyPacked:0});
+    });
+    if(seq.length && o.shipped){ o.shipped=false; o.packed=false; } // re-pulled -> back in the active queue
+    repullAppliedCount++;
+    return;
+  }
+  var nd=pendingImportCtx.newOrderData[num];
+  if(!nd) return;
+  if(pickedSkus){
+    nd.items=nd.items.filter(function(it){return pickedSkus.indexOf(it.sku)>=0;});
+    if(!nd.items.length){ delete pendingImportCtx.newOrderData[num]; return; }
+  }
+  repullAppliedCount++;
+}
+
+// Pull-chooser review link: flag an order so the import asks which items to
+// include even when nothing says it was sent before (manual, opt-in).
+function repullPickFromChooser(i){
+  var o=(pendingShopifyOrders||[])[i]; if(!o) return;
+  var num=(o.name||'').replace(/^#/,'');
+  forceRepullPrompt[num]=true;
+  showFlash('Order #'+num+' will ask which items to include when you tap Import selected','ok');
 }
 
 function showUnmatchedBox() {
@@ -2980,6 +3162,28 @@ function renderLabelsPanel() {
     <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
       <button class="pk-alert-btn" onclick="applyDeliverSelected()">Remove checked from the order</button>
       <button class="pk-alert-btn" style="background:#666;" onclick="hideDeliverModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="pk-alert-ov" id="repull-ov" style="display:none;">
+  <div class="pk-alert" style="max-width:560px;width:100%;text-align:left;max-height:85vh;overflow-y:auto;">
+    <div class="pk-alert-title" style="text-align:center;" id="repull-title"></div>
+    <div id="repull-sub" style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:12px;"></div>
+    <div id="repull-stage1">
+      <div style="font-size:14px;text-align:center;margin-bottom:14px;">Re-pull the whole order, choose specific items, or skip it?</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;" onclick="repullDecide('entire')">Re-pull entire order</button>
+        <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#b45309;" onclick="repullDecide('pick')">Choose items...</button>
+        <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#666;" onclick="repullDecide('skip')">Skip</button>
+      </div>
+    </div>
+    <div id="repull-stage2" style="display:none;">
+      <div style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Tick the items to pull in:</div>
+      <div id="repull-items"></div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+        <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#b45309;" onclick="repullApplyPicked()">Import selected items</button>
+        <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#666;" onclick="repullDecide('skip')">Skip</button>
+      </div>
     </div>
   </div>
 </div>
