@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Scanner v54 - CUSTOM ITEMS: unmatched Shopify lines can create persistent CSTM items that survive reloads and Airtable stale-menu cleanup, join the regular assignment list, sync item counts, pack normally, and print labels - former v53 - FREEZER NOTES + HOLD: per-SKU notes and hold switches persist on this device; held stock stays visible and exports but is never credited against orders, and the credit preview names held items as skipped - former v52 - FREEZER COUNT mode (his spec: "keep it separate and decide if I wanna match it toward it or not"): its own per-SKU counter, fully separate from production Done and orders - scans, undo, +/- adjust and CSV export touch NOTHING else and never call Airtable; one deliberate "Credit freezer stock against orders" button (confirm first) applies freezer counts to loaded orders Done, capped at what each SKU still needs, leftovers stay in the freezer; counts persist per-device in local storage like everything else - former v51 - sync pump freeze fix: every Airtable fetch now has a 20s timeout (a hung request fails and retries with backoff instead of freezing the FIFO queue forever - the "1 change not synced" banner that never cleared), and after ~25 minutes of continuous rejection on one change the banner tells him to reload the tab instead of retrying silently forever - former v50 - HIS CORRECTION: re-pull assumes nothing. The pick modal lists every original line at ORIGINAL quantity, fully-sent lines stay selectable (a "marked sent" hint only), and every qty box defaults to the full original count, editable 1..original - delivered records never prefill or cap the choice, because his records can be wrong (the Apple Crisp case: 3 marked sent, customer got 2, he needs to re-pull 1) - former v49 - re-pull pick modal shows REMAINING quantities (Shopify line qty minus what the Deliver flow already marked sent on this device), flags fully-sent lines dimmed and unticked, and gives every line a quantity box so he can pull fewer than the remaining count; the picked quantity is what imports, delivered history is preserved - former v48 - fix: re-pulling an order now clears its stale verify/spot state (v44 reset packed counts but left verifyDone=true - with 0 packed the verify + spot-check panels hid themselves and the label lock passed on an unverified order); session restore repairs the same impossible state on boot - former v47 - mark-off without scanning (his live Sukkos need): a "Boxes already packed? Mark all packed" button on Pack & Verify marks every item packed AND verified in one click (after a confirm) so a sealed-box order can ship and print labels without a single scan; the Deliver modal now also lists the NOT-packed remaining items (unticked by default) - ticking one records it as delivered-earlier with no scanning, and the order shrinks to what is genuinely still owed; SPOT CHECK (his pick, option A): on 25+ item orders a "Spot check - sealed boxes" panel sits under the verify panel - he scans ANY 10 items of his choice from the order (whatever is on top, typed or scanned); each scan must belong to the order and stay within its quantities, a wrong-item scan keeps the label locked and flags the mismatch loudly; passing marks the order packed + verified so shipping labels print and the ship path unlocks. The full per-item second scan remains available - former v46 - merge prompt is now a 3-way choice (Merge into one order / Keep separate / Cancel import) so orders one customer placed FOR different people are never forced together; merge decisions are collected first and applied after all answers, so Cancel always aborts cleanly with no new orders imported - former v45 - Airtable sync hardening (approved 2026-09-14): every Airtable call now goes through one queued pump that spaces requests under the 5/sec cap, coalesces per-scan count writes into batched flushes (~10x fewer calls), retries network/429/5xx failures automatically with backoff, and shows a persistent "N changes not synced - retrying" warning in the Airtable status pill plus a one-time center toast - a failed sync can never fail silently again; v45b: order Address now syncs to the Airtable Orders table (its own drop-safe PATCH like Items Remaining, so it fills the moment he adds the Address column - Airtable blocks API field creation) so delivery labels work cross-device - former v44 - Re-pull prompt for previously-sent orders (his rule, verbatim): fresh orders pull in full with no prompt; re-pull an order that already went out - fulfilled/partially-fulfilled in Shopify, or marked shipped / partially delivered in the scanner - and a prompt asks: re-pull the entire order, choose specific items, or skip it. The Shopify pull chooser also gains a per-order "choose items..." review link (manual, opt-in, any order) - former v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
+<!-- Scanner v55 - MATCHER STOPS GUESSING + GAP-FILL REVIEW + ORDER ITEM EDITING: (1) fuzzy name matching now penalizes unexplained words in the Shopify title (matches divided by the LARGER word list), so a custom line like 'Side of Salmon - Honey Mustard Dill' can no longer silently book itself as 'Rainbow Side of Salmon'; (2) lines Shopify itself marks as custom (Admin API: no product_id; CSV export: empty Vendor) bypass name matching entirely and go straight to the unmatched/custom box, unless his own custom catalog has an EXACT name match; (3) re-imports no longer ignore already-loaded orders: lines Shopify has that the loaded order lacks are collected into an opt-in gap-fill review list (tick to add; items he deliberately delivered off an order can be unticked) - this is how Tova's white rices get in; (4) an 'Edit items' button on the pack view removes wrong lines and adds missing ones on the spot - former v54 - CUSTOM ITEMS: unmatched Shopify lines can create persistent CSTM items that survive reloads and Airtable stale-menu cleanup, join the regular assignment list, sync item counts, pack normally, and print labels - former v53 - FREEZER NOTES + HOLD: per-SKU notes and hold switches persist on this device; held stock stays visible and exports but is never credited against orders, and the credit preview names held items as skipped - former v52 - FREEZER COUNT mode (his spec: "keep it separate and decide if I wanna match it toward it or not"): its own per-SKU counter, fully separate from production Done and orders - scans, undo, +/- adjust and CSV export touch NOTHING else and never call Airtable; one deliberate "Credit freezer stock against orders" button (confirm first) applies freezer counts to loaded orders Done, capped at what each SKU still needs, leftovers stay in the freezer; counts persist per-device in local storage like everything else - former v51 - sync pump freeze fix: every Airtable fetch now has a 20s timeout (a hung request fails and retries with backoff instead of freezing the FIFO queue forever - the "1 change not synced" banner that never cleared), and after ~25 minutes of continuous rejection on one change the banner tells him to reload the tab instead of retrying silently forever - former v50 - HIS CORRECTION: re-pull assumes nothing. The pick modal lists every original line at ORIGINAL quantity, fully-sent lines stay selectable (a "marked sent" hint only), and every qty box defaults to the full original count, editable 1..original - delivered records never prefill or cap the choice, because his records can be wrong (the Apple Crisp case: 3 marked sent, customer got 2, he needs to re-pull 1) - former v49 - re-pull pick modal shows REMAINING quantities (Shopify line qty minus what the Deliver flow already marked sent on this device), flags fully-sent lines dimmed and unticked, and gives every line a quantity box so he can pull fewer than the remaining count; the picked quantity is what imports, delivered history is preserved - former v48 - fix: re-pulling an order now clears its stale verify/spot state (v44 reset packed counts but left verifyDone=true - with 0 packed the verify + spot-check panels hid themselves and the label lock passed on an unverified order); session restore repairs the same impossible state on boot - former v47 - mark-off without scanning (his live Sukkos need): a "Boxes already packed? Mark all packed" button on Pack & Verify marks every item packed AND verified in one click (after a confirm) so a sealed-box order can ship and print labels without a single scan; the Deliver modal now also lists the NOT-packed remaining items (unticked by default) - ticking one records it as delivered-earlier with no scanning, and the order shrinks to what is genuinely still owed; SPOT CHECK (his pick, option A): on 25+ item orders a "Spot check - sealed boxes" panel sits under the verify panel - he scans ANY 10 items of his choice from the order (whatever is on top, typed or scanned); each scan must belong to the order and stay within its quantities, a wrong-item scan keeps the label locked and flags the mismatch loudly; passing marks the order packed + verified so shipping labels print and the ship path unlocks. The full per-item second scan remains available - former v46 - merge prompt is now a 3-way choice (Merge into one order / Keep separate / Cancel import) so orders one customer placed FOR different people are never forced together; merge decisions are collected first and applied after all answers, so Cancel always aborts cleanly with no new orders imported - former v45 - Airtable sync hardening (approved 2026-09-14): every Airtable call now goes through one queued pump that spaces requests under the 5/sec cap, coalesces per-scan count writes into batched flushes (~10x fewer calls), retries network/429/5xx failures automatically with backoff, and shows a persistent "N changes not synced - retrying" warning in the Airtable status pill plus a one-time center toast - a failed sync can never fail silently again; v45b: order Address now syncs to the Airtable Orders table (its own drop-safe PATCH like Items Remaining, so it fills the moment he adds the Address column - Airtable blocks API field creation) so delivery labels work cross-device - former v44 - Re-pull prompt for previously-sent orders (his rule, verbatim): fresh orders pull in full with no prompt; re-pull an order that already went out - fulfilled/partially-fulfilled in Shopify, or marked shipped / partially delivered in the scanner - and a prompt asks: re-pull the entire order, choose specific items, or skip it. The Shopify pull chooser also gains a per-order "choose items..." review link (manual, opt-in, any order) - former v43 - Big-order option (his pick): entering a 25+ item order to pack offers a printable order label sheet - one sticker per item (name, size, order #) on standard 30-up stock; he sticks one on each item as he packs it and leftovers flag what did not get packed. Optional prompt, fully additive - former v42 - Label print lock for big orders (his verbatim rule): delivery labels for a 25+ item order cannot print until the verify (2nd) scan pass is done; verify progress now persists on the order and survives reloads - former v41 - Verify pass now fits his real flow: once an item is fully packed, scanning it AGAIN in the main scan box counts as the box/verify scan (center toast "BOX SCAN ✓ n of m verified"), so he can verify interleaved as items go into boxes instead of a separate stage at the end; the verify panel shows live progress from the first packed item on big orders - former v40c - delivery fulfillment check now treats Airtable Status "Not Ready" as NOT fulfilled (printing labels for an unfinished order keeps it open and on the shipping list), and keeps the raw Items Remaining value so text lists survive - former v40b - fulfillment check now treats a non-empty TEXT Items Remaining list as NOT fulfilled (the app writes text lists there; only an empty value means complete) - former v40 - Delivery list cleanup: printing shipping labels for a fully-fulfilled order marks it Shipped (Airtable + local) and it drops off the delivery list; partially-sent orders stay on the list. Shipped orders are also filtered out of the list on load - former v39b - fix: verify-pass counter increment - former v39 - All scan feedback moved to the middle of the screen: every pack/production scan result (good scans "1 of 2 done", "already scanned", all warnings) now pops as a large center-screen toast instead of the easy-to-miss top flash - former v37 - Big-order verify pass: orders of 25+ items cannot be marked shipped until every packed item is scanned a second time and the counts match exactly (his pick from the foolproofing ideas after mistakes on a 90+ item order) - former v36b - Line-items header refreshes after a partial delivery - former v36 - Partial-delivery flow: "Deliver packed items..." lets him choose which packed items come OFF the order (order reloads show only what is still remaining), plus an "Owed again" un-ship that returns a wrongly-delivered item to the list and logs it in the Still-owed ledger - former v35 - Product name on labels made much bigger (customer said the lettering was too small to read); logo and barcode shrunk to make room - former v34 - Shipping an order short (marking shipped with items not fully packed) now warns, requires a reason+plan, and keeps the owed items in a persistent "Still owed" list on the Pack & Verify tab until marked remade - former v33 - Labels tab auto-resets after printing (no hard refresh needed) and "Start at label #" offers the next free slot from the last run (asked, not assumed). - former v32 - Pack & Verify wrong-item scans now pop a large centered modal (fixed overlay, visible regardless of scroll) instead of the easy-to-miss top flash; scans are ignored until the warning is dismissed - former v31 - Labels-by-order (and batch/extras) now group every unit of the same product+variant together: expandItems sorts by name, then size, then sku, so e.g. all Apple Crisp 9" labels print, then all Apple Crisp Packed 12 - order sequence no longer interleaves variants. - former v30b - Shopify pull now has a chooser step: after fetching the open+unfulfilled candidates it lists them (order # + customer, all ticked by default) and only the ticked ones import; selecting none or cancelling is a no-op. - former v30 - Manual "Pull from Shopify" button: fetches unfulfilled orders via the cookit-shopify-proxy Cloudflare Worker (Admin API token lives server-side, never in this file), converts them to the Shopify CSV shape and runs them through the SAME parseShopifyCSV pipeline as a CSV drop - identical merge semantics (gap-fill only, never resets progress, merge prompts, mergedOrders all apply). Manual trigger only: no auto-pull, no background sync. - former v29b - Pack-flow multi-order awareness: entering an order number pulls up ALL open orders for that customer to pack together (mergedOrders numbers redirect to the surviving order); if one order is fully packed while a sibling is not, a warning plus intentional ship-only-the-packed-one path appears. - former v29 - Merge-at-import: when one customer has multiple new orders in a CSV, import asks per customer "This customer has N orders - merge them?" Yes combines items/address/labels under the lowest order number (readiness computes across the combined list, so half-ready never ships), No keeps them separate; the decision persists across re-imports via mergedOrders. - former v28 - Delivery-label print guard: printing labels for an order that is not fully fulfilled asks "Order not fully fulfilled. Print label anyway?" - Yes prints and leaves the order OPEN (no packed/shipped flag, no Airtable completion sync; partial-shipment case), No cancels. Fully fulfilled orders print straight through. - former v27 - Delivery-label address fix: address is captured from ANY CSV row of the order (Shopify puts it only on the first line-item row) and backfilled onto orders that already exist (session restore / re-import previously skipped them, leaving labels blank). Strips Excel leading apostrophe from zips. - former v26 - Delivery labels: auto title-case customer names; robust Shopify address column matching (shipping variants + billing fallback, whitespace-tolerant). - former v25 - Delivery labels now show the delivery address (Airtable address field when present, else captured from the Shopify CSV shipping columns at import). - former v24 - Delivery labels: 4-up shipping-style labels per box (name, order #, delivery date, logo, Box X of Y). Orders pulled read-only from Airtable. - former v23 - per-order "Items Remaining" breakdown synced to the Airtable orders table. Airtable sync routes through a Cloudflare Worker proxy (cookit-airtable-proxy); the Airtable token no longer ships in this file -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -311,6 +311,10 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
         <button onclick="openDeliverModal()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--blue,#2563eb);background:transparent;color:var(--blue,#2563eb);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📤 Deliver packed items…</button>
         <span style="font-size:11px;color:var(--muted);margin-left:12px;">Sending part of the order now? Choose what leaves - the order keeps only what's still remaining</span>
       </div>
+      <div id="edititems-wrap" style="margin-top:12px;">
+        <button onclick="openEditItems()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--border2);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">✏️ Edit items…</button>
+        <span style="font-size:11px;color:var(--muted);margin-left:12px;">Fix a wrong or missing line on this order - no re-import needed</span>
+      </div>
       <div id="markall-wrap" style="margin-top:12px;">
         <button onclick="markAllPacked()" style="padding:10px 24px;border-radius:var(--r-sm);border:1px solid var(--orange);background:transparent;color:var(--orange);font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📦 Boxes already packed? Mark all packed (no scanning)</button>
         <span style="font-size:11px;color:var(--muted);margin-left:12px;">One click marks every item packed + verified - shipping and label printing unlock</span>
@@ -458,7 +462,7 @@ main{flex:1;padding:20px 28px;max-width:1100px;margin:0 auto;width:100%;}
 </main>
 
 <script>
-console.log("Scanner v54 loaded");
+console.log("Scanner v55 loaded");
 // ── MASTER SKU LIST ──────────────────────────────────────
 const SKUS = [
   {sku:"FAP-001",name:"Sweet Cocktail Meatballs",size:"2 lb",cat:"Appetizers"},
@@ -1025,6 +1029,7 @@ function updateAtStatus(msg, color) {
 var orders = {};
 var scanCounts = {}; // sku -> done count (persisted separately from prodCount)
 var currentOrder = null;
+var suppressLabelPrompt = false; // v55: internal reloads (edit items) don't re-ask
 var pendingUnmatched = [];
 var mergedOrders = {}; // v29: merged-away order number -> surviving order number (persisted)
 var mode = 'prod';
@@ -1222,10 +1227,29 @@ function shopifyNameToSKU(title) {
     var skuWords=norm(SKUS[i].name).split(" ").filter(function(w){return w.length>3;});
     var matches=0;
     titleWords.forEach(function(w){if(skuWords.indexOf(w)!==-1)matches++;});
-    var score=skuWords.length>0?matches/skuWords.length:0;
+    // v55: divide by the LARGER word list - extra unexplained words in the
+    // Shopify title (a custom 'Side of Salmon - Honey Mustard Dill' scoring
+    // 2/3 against 'Rainbow Side of Salmon') now sink the match instead of
+    // silently booking the wrong dish.
+    var score=skuWords.length>0?matches/Math.max(skuWords.length,titleWords.length):0;
     if(score>bestScore&&score>=0.6){bestScore=score;bestSku=SKUS[i].sku;}
   }
   return bestSku;
+}
+
+// v55: one place decides what a Shopify line becomes. Lines Shopify itself
+// marks custom (pull: no product_id; CSV export: empty Vendor) never go
+// through fuzzy name matching - only an EXACT match against his own custom
+// catalog may claim them, otherwise they land in the unmatched/custom box.
+function resolveLineSku(itemName, isCustom){
+  if(isCustom){
+    for(var i=0;i<customItems.length;i++){
+      var c=customItems[i];
+      if(norm(c.name)===norm(itemName) || norm(c.name+(c.size?' - '+c.size:''))===norm(itemName)) return c.sku;
+    }
+    return null;
+  }
+  return shopifyNameToSKU(itemName);
 }
 
 // ── CSV LOADING ──────────────────────────────────────────
@@ -1288,7 +1312,7 @@ function shopifyPull() {
         return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;">'
           +'<input type="checkbox" class="shopify-pick-cb" data-idx="'+i+'" checked>'
           +'<strong>#'+escHtml(num)+'</strong> '+escHtml(titleCaseName(cust)||'(no name)')
-          +(known?' <span style="font-size:11px;color:var(--muted);">- already loaded, will only fill gaps</span>':' <span style="font-size:11px;color:var(--green);">- new</span>')
+          +(known?' <span style="font-size:11px;color:var(--muted);">- already loaded, will review for missing items</span>':' <span style="font-size:11px;color:var(--green);">- new</span>')
           +' <a href="#" onclick="repullPickFromChooser('+i+');return false;" style="font-size:11px;">choose items...</a>'
           +'</label>';
       }).join('');
@@ -1325,7 +1349,7 @@ function shopifyCell(v){ v=String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v
 
 function shopifyOrdersToCsv(list) {
   var header=['Name','Email','Billing Name','Lineitem name','Lineitem quantity',
-    'Fulfillment Status',
+    'Fulfillment Status','Lineitem custom',
     'Shipping Address1','Shipping Address2','Shipping City','Shipping Province','Shipping Zip',
     'Billing Address1','Billing Address2','Billing City','Billing Province','Billing Zip'];
   var rows=[header.join(',')];
@@ -1336,13 +1360,17 @@ function shopifyOrdersToCsv(list) {
     if(!items.length) items=[{title:'',quantity:1}];
     items.forEach(function(li,idx){
       var itemName=li.title + (li.variant_title ? ' - '+li.variant_title : '');
+      // v55: a draft-order custom line has no product behind it - flag it so
+      // the import sends it to the custom box instead of letting the matcher
+      // guess (the phantom Rainbow Side of Salmon bug on #1314).
+      var isCustomLine=(li.product_id==null)?'TRUE':'';
       // mirror the real Shopify export: only the first line-item row of an
       // order carries the email / names / addresses
       var first = idx===0;
       rows.push([
         o.name||'', first?(o.email||''):'', first?cust:'',
         itemName, li.quantity||1,
-        first?shopifyFulfillmentLabel(o):'',
+        first?shopifyFulfillmentLabel(o):'', isCustomLine,
         first?(ship.address1||''):'', first?(ship.address2||''):'', first?(ship.city||''):'', first?(ship.province||ship.province_code||''):'', first?(ship.zip||''):'',
         first?(bill.address1||''):'', first?(bill.address2||''):'', first?(bill.city||''):'', first?(bill.province||bill.province_code||''):'', first?(bill.zip||''):''
       ].map(shopifyCell).join(','));
@@ -1363,6 +1391,10 @@ function parseShopifyCSV(text) {
   var emailCol = col['email'];
   var lineItemCol = col['lineitem name']!==undefined?col['lineitem name']:col['lineitem_name'];
   var qtyCol = col['lineitem quantity']!==undefined?col['lineitem quantity']:col['lineitem_quantity'];
+  // v55: Shopify's own custom-line signals - the pull writes 'Lineitem custom',
+  // a real Shopify export leaves Vendor empty on product-less custom lines.
+  var customCol = col['lineitem custom'];
+  var vendorCol = col['vendor'];
 
   if (orderNumCol===undefined||lineItemCol===undefined) {
     showFlash('Could not read CSV — export as CSV for Excel from Shopify Orders','err');
@@ -1370,6 +1402,7 @@ function parseShopifyCSV(text) {
   }
 
   var newOrders=0, skippedOrders=0, matched=0, addrUpdated=0;
+  gapFillCandidates=[]; // v55: reset per import
   var unmatchedMap={};
   var newOrderData={};
   var rawOrderItems={}, shopifyStatusByOrder={}; // v44: per-order file contents + Shopify fulfillment status, for the re-pull prompt
@@ -1385,6 +1418,8 @@ function parseShopifyCSV(text) {
     var email=emailCol!==undefined?(cols[emailCol]||'').trim():'';
     var itemName=lineItemCol!==undefined?(cols[lineItemCol]||''):'';
     var qty=parseInt(cols[qtyCol]||'1',10)||1;
+    var isCustom=(customCol!==undefined && String(cols[customCol]||'').trim().toUpperCase()==='TRUE')
+      || (vendorCol!==undefined && String(cols[vendorCol]||'').trim()==='');
 
     // v27: capture the address from ANY row of the order that carries it
     // (Shopify puts it only on the first line-item row), and backfill orders
@@ -1399,19 +1434,37 @@ function parseShopifyCSV(text) {
     // v44: remember every row's raw item + Shopify fulfillment status for this
     // order, so a previously-sent order can prompt before anything imports.
     if(!rawOrderItems[orderNum]) rawOrderItems[orderNum]=[];
-    if(itemName) rawOrderItems[orderNum].push({name:itemName,qty:qty,sku:shopifyNameToSKU(itemName)});
+    if(itemName) rawOrderItems[orderNum].push({name:itemName,qty:qty,sku:resolveLineSku(itemName,isCustom)});
     var fsIdx=col['fulfillment status'];
     if(fsIdx!==undefined && cols[fsIdx] && !shopifyStatusByOrder[orderNum]) shopifyStatusByOrder[orderNum]=String(cols[fsIdx]).trim().toLowerCase();
 
     if(!itemName) continue;
 
-    // Skip if order already exists
-    if (orders[orderNum]) { skippedOrders++; continue; }
+    // Order already exists: the import never touches its progress - but v55
+    // no longer ignores its lines. Anything Shopify has that the loaded order
+    // lacks is collected for the opt-in gap-fill review after import (that
+    // review is where Tova's missing white rices finally get in). Items he
+    // deliberately delivered off an order will appear there too - he unticks
+    // them. Shipped orders are left alone.
+    if (orders[orderNum]) {
+      skippedOrders++;
+      if(!orders[orderNum].shipped){
+        var gSku=resolveLineSku(itemName,isCustom);
+        var hasIt=gSku && orders[orderNum].items.some(function(it){return it.sku===gSku;});
+        if(!hasIt){
+          var gKey=gSku||('~'+norm(itemName));
+          var gEx=gapFillCandidates.find(function(g){return g.orderNum===orderNum && g.key===gKey;});
+          if(gEx) gEx.qty+=qty;
+          else gapFillCandidates.push({key:gKey,orderNum:orderNum,customer:(orders[orderNum].customer||customer),sku:gSku,rawName:itemName,qty:qty});
+        }
+      }
+      continue;
+    }
 
     if(!newOrderData[orderNum]) {
       newOrderData[orderNum]={customer:customer,email:email,address:rowAddr,items:[]}; newOrders++;
     }
-    var sku=shopifyNameToSKU(itemName);
+    var sku=resolveLineSku(itemName,isCustom);
     if(sku) {
       var existing=newOrderData[orderNum].items.find(function(it){return it.sku===sku;});
       if(existing) existing.qtyOrdered+=qty;
@@ -1426,6 +1479,8 @@ function parseShopifyCSV(text) {
   // ── v44: previously-sent orders ask before anything re-pulls ──
   var repullFlags=collectRepullFlags(newOrderData,rawOrderItems,shopifyStatusByOrder);
   if(repullFlags.length){
+    var flaggedNums={}; repullFlags.forEach(function(f){flaggedNums[f.num]=true;});
+    gapFillCandidates=gapFillCandidates.filter(function(g){return !flaggedNums[g.orderNum];});
     pendingImportCtx={newOrderData:newOrderData,unmatchedMap:unmatchedMap,rawOrderItems:rawOrderItems,
       newOrders:newOrders,skippedOrders:skippedOrders,matched:matched,addrUpdated:addrUpdated};
     startRepullQueue(repullFlags);
@@ -1554,6 +1609,59 @@ function finishImportApply(newOrderData,unmatchedMap,ctr,mergeThese){
   }
 
   renderProdGrid(); updateProdStats();
+
+  maybeShowGapFill(); // v55: review items Shopify has that loaded orders lack
+}
+
+// ── v55 GAP-FILL REVIEW ──────────────────────────────────────────
+// Re-imports used to skip already-loaded orders entirely, so a line that
+// never made it in the first time (unmatched then, added to the menu later)
+// could NEVER get in. After every import, missing lines are offered once,
+// opt-in: tick to add. Cancel/skip changes nothing.
+var gapFillCandidates=[];
+function maybeShowGapFill(){
+  if(!gapFillCandidates.length) return;
+  var list=document.getElementById('gapfill-items');
+  list.innerHTML=gapFillCandidates.map(function(g,idx){
+    var disp=g.sku?(escHtml(SKU_MAP[g.sku].name)+(SKU_MAP[g.sku].size?' <span style="color:var(--muted);">('+escHtml(SKU_MAP[g.sku].size)+')</span>':''))
+      :(escHtml(g.rawName)+' <span style="color:var(--orange);font-size:11px;">- will go to the custom/manual-match box</span>');
+    return '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer;">'
+      +'<input type="checkbox" class="gapfill-cb" data-idx="'+idx+'" checked>'
+      +'<span><strong>#'+escHtml(g.orderNum)+'</strong> '+escHtml(titleCaseName(g.customer||''))+' - '+disp+' <b>x'+g.qty+'</b></span></label>';
+  }).join('');
+  document.getElementById('gapfill-ov').style.display='flex';
+}
+function gapFillDecide(apply){
+  document.getElementById('gapfill-ov').style.display='none';
+  if(apply){
+    var cbs=document.querySelectorAll('.gapfill-cb');
+    var added=0, toCustom=0;
+    for(var i=0;i<cbs.length;i++){
+      if(!cbs[i].checked) continue;
+      var g=gapFillCandidates[parseInt(cbs[i].getAttribute('data-idx'),10)];
+      var o=orders[g.orderNum]; if(!o) continue;
+      if(g.sku){
+        var ex=o.items.find(function(it){return it.sku===g.sku;});
+        if(ex) ex.qtyOrdered+=g.qty;
+        else o.items.push({sku:g.sku,name:SKU_MAP[g.sku].name,size:SKU_MAP[g.sku].size,qtyOrdered:g.qty,qtyPacked:0});
+        added++;
+      } else {
+        // no catalog home - hand it to the standard manual-match/custom flow
+        var uEx=null;
+        pendingUnmatched.forEach(function(u){ if(u.shopifyName===g.rawName) uEx=u; });
+        if(!uEx){ uEx={shopifyName:g.rawName,occurrences:[]}; pendingUnmatched.push(uEx); }
+        uEx.occurrences.push({orderNum:g.orderNum,customer:g.customer,qty:g.qty});
+        toCustom++;
+      }
+    }
+    if(toCustom>0) showUnmatchedBox();
+    rebuildNeeded(); saveSession(); atPushAllCounts(); atSyncOrders();
+    renderProdGrid(); updateProdStats();
+    showFlash((added?('Added '+added+' missing item(s) to loaded orders'):'')+(added&&toCustom?' - ':'')+(toCustom?(toCustom+' line(s) sent to the custom box below'):'')||'Nothing added','ok');
+  } else {
+    showFlash('Gap-fill skipped - loaded orders unchanged','warn');
+  }
+  gapFillCandidates=[];
 }
 
 // ── v44 RE-PULL PROMPT FOR PREVIOUSLY-SENT ORDERS ─────────────────
@@ -1807,6 +1915,84 @@ function applyManualMatches() {
     showFlash(applied+' matched — '+pendingUnmatched.length+' still need assignment','warn');
   }
 }
+
+// ── v55 EDIT ORDER ITEMS ─────────────────────────────────────────
+// Small on-the-spot fixer on the pack view: remove a wrong line (e.g. a
+// phantom the old matcher guessed in) or add a missing one, without any
+// re-import. Any verify/spot-check progress on the order is reset, because
+// a verified list that no longer matches the order is worse than none.
+function openEditItems(){
+  if(!currentOrder){showFlash('Load an order first','warn');return;}
+  var sel=document.getElementById('edititems-sku');
+  sel.innerHTML=SKUS.slice().sort(function(a,b){return (a.name+' '+a.size).localeCompare(b.name+' '+b.size);})
+    .map(function(s){return '<option value="'+escHtml(s.sku)+'">'+escHtml(s.name)+(s.size?' ('+escHtml(s.size)+')':'')+'</option>';}).join('');
+  renderEditItemsList();
+  document.getElementById('edititems-ov').style.display='flex';
+}
+function renderEditItemsList(){
+  var nums=currentOrder?(currentOrder.nums||[currentOrder.num]):[];
+  var html='';
+  nums.forEach(function(n){
+    var o=orders[n]; if(!o) return;
+    html+='<div style="font-size:12px;font-weight:700;color:var(--muted);margin:8px 0 2px;">#'+escHtml(n)+(o.customer?' - '+escHtml(o.customer):'')+'</div>';
+    o.items.forEach(function(it,idx){
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;">'
+        +'<span style="flex:1;">'+escHtml(it.name)+(it.size?' <span style="color:var(--muted);">('+escHtml(it.size)+')</span>':'')+' <b>x'+it.qtyOrdered+'</b>'
+        +((it.qtyPacked||0)>0?' <span style="color:var(--orange);font-size:11px;">'+it.qtyPacked+' packed</span>':'')
+        +((it.qtyDelivered||0)>0?' <span style="color:var(--muted);font-size:11px;">'+it.qtyDelivered+' delivered</span>':'')
+        +'</span>'
+        +'<button onclick="editItemsRemove(&quot;'+escHtml(n)+'&quot;,'+idx+')" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:white;color:#b91c1c;font-size:12px;cursor:pointer;">Remove</button></div>';
+    });
+  });
+  document.getElementById('edititems-list').innerHTML=html||'<div style="font-size:13px;color:var(--muted);">No items.</div>';
+}
+function editItemsRemove(num,idx){
+  var o=orders[num]; if(!o||!o.items[idx]) return;
+  var it=o.items[idx];
+  var warn='Remove '+it.name+(it.size?' ('+it.size+')':'')+' x'+it.qtyOrdered+' from order #'+num+'?';
+  if((it.qtyPacked||0)>0||(it.qtyDelivered||0)>0) warn+='\n\nCareful: '+(it.qtyPacked||0)+' packed / '+(it.qtyDelivered||0)+' delivered on this line - removing drops that progress.';
+  if(!confirm(warn)) return;
+  o.items.splice(idx,1);
+  afterOrderEdit(num,true);
+}
+function editItemsAdd(){
+  if(!currentOrder) return;
+  var nums=currentOrder.nums||[currentOrder.num];
+  var sel=document.getElementById('edititems-sku');
+  var sku=sel.value; if(!sku||!SKU_MAP[sku]) return;
+  var qty=parseInt(document.getElementById('edititems-qty').value,10)||1;
+  var num=nums[0];
+  if(nums.length>1){
+    var pick=prompt('Add to which order? '+nums.map(function(n){return '#'+n;}).join(' or '), nums[0]);
+    if(pick===null) return;
+    num=String(pick).replace(/^#/,'').trim();
+    if(nums.indexOf(num)===-1){showFlash('That order is not part of what is loaded','err');return;}
+  }
+  var o=orders[num]; if(!o) return;
+  var ex=o.items.find(function(it){return it.sku===sku;});
+  if(ex) ex.qtyOrdered+=qty;
+  else o.items.push({sku:sku,name:SKU_MAP[sku].name,size:SKU_MAP[sku].size,qtyOrdered:qty,qtyPacked:0});
+  afterOrderEdit(num,true);
+}
+function afterOrderEdit(num,edited){
+  var o=orders[num];
+  if(o && edited && (o.verifyDone || o.spotChecked || Object.keys(o.verify||{}).length || Object.keys(o.spot||{}).length)){
+    o.verify={}; o.verifyDone=false; o.spot={}; o.spotChecked=false;
+    showFlash('Order #'+num+' updated - verify pass reset, scan the box again','warn');
+  } else {
+    showFlash('Order #'+num+' updated','ok');
+  }
+  rebuildNeeded(); saveSession(); atPushAllCounts(); atSyncOrders();
+  renderProdGrid(); updateProdStats();
+  // reload the pack view so counts and labels see the change (no label-sheet re-ask)
+  var inp=document.getElementById('order-input');
+  if(inp) inp.value=currentOrder?currentOrder.num:num;
+  suppressLabelPrompt=true;
+  loadOrder();
+  suppressLabelPrompt=false;
+  renderEditItemsList();
+}
+function closeEditItems(){ document.getElementById('edititems-ov').style.display='none'; }
 
 function rebuildNeeded() {
   Object.keys(prodCount).forEach(function(s){prodCount[s].needed=0;});
@@ -2198,7 +2384,7 @@ function loadOrder() {
   setTimeout(function(){document.getElementById('pack-input').focus();},50);
   // v43: offer the item label sheet on big orders (optional - decline changes nothing)
   var _tot=currentOrder.items.reduce(function(st,i){return st+i.qtyOrdered;},0);
-  if(_tot>=VERIFY_MIN_ITEMS && !currentOrder.verifyDone){
+  if(!suppressLabelPrompt && _tot>=VERIFY_MIN_ITEMS && !currentOrder.verifyDone){
     if(confirm('Big order - '+_tot+' items. Print an order label sheet with all the order items?\n\nOne label per item: stick one on each item as you pack it. Any labels left on the sheet at the end mean something did not get packed.')) printOrderItemSheet();
   }
 }
@@ -3715,6 +3901,32 @@ function renderLabelsPanel() {
     <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
       <button class="pk-alert-btn" onclick="applyDeliverSelected()">Remove checked from the order</button>
       <button class="pk-alert-btn" style="background:#666;" onclick="hideDeliverModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="pk-alert-ov" id="gapfill-ov" style="display:none;">
+  <div class="pk-alert" style="max-width:560px;width:100%;text-align:left;max-height:85vh;overflow-y:auto;">
+    <div class="pk-alert-title" style="text-align:center;">Shopify has items your loaded orders don't</div>
+    <div style="font-size:14px;color:var(--muted);text-align:center;margin-bottom:12px;">These orders were already loaded, so the pull left them alone - but Shopify lists lines they don't have. Tick what to add. (Something the customer already took? Untick it.)</div>
+    <div id="gapfill-items"></div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+      <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;" onclick="gapFillDecide(true)">Add selected</button>
+      <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#666;" onclick="gapFillDecide(false)">Skip all</button>
+    </div>
+  </div>
+</div>
+<div class="pk-alert-ov" id="edititems-ov" style="display:none;">
+  <div class="pk-alert" style="max-width:560px;width:100%;text-align:left;max-height:85vh;overflow-y:auto;">
+    <div class="pk-alert-title" style="text-align:center;">Edit order items</div>
+    <div id="edititems-list"></div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:12px 0 6px;">Add an item</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <select id="edititems-sku" style="flex:1;min-width:220px;padding:6px 10px;border-radius:6px;border:1px solid var(--border2);font-family:'DM Sans',sans-serif;font-size:12px;background:white;"></select>
+      <input type="number" id="edititems-qty" min="1" value="1" style="width:58px;padding:6px;border:1px solid var(--border2);border-radius:6px;font-family:DM Mono,monospace;font-size:13px;text-align:center;">
+      <button class="pk-alert-btn" style="font-size:13px;padding:8px 16px;" onclick="editItemsAdd()">Add</button>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
+      <button class="pk-alert-btn" style="font-size:16px;padding:12px 22px;background:#666;" onclick="closeEditItems()">Done</button>
     </div>
   </div>
 </div>
