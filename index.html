@@ -3585,6 +3585,25 @@ function renderLabelSheets(sheets) {
   saveSession();
 }
 
+// Packing-label companions that are not Shopify products. One sauce label is
+// added per selected order containing the matching entree, regardless of item qty.
+// Dedicated barcode values identify the sauce bag without pretending it is a sold SKU.
+var COMPANION_SAUCE_LABELS = {
+  'FEN-015': {sku:'SAUCE-SESAME-CHICKEN', name:'Sesame Chicken Sauce'},
+  'FEN-016': {sku:'SAUCE-HOT-POPPERS', name:'Hot Poppers Sauce'}
+};
+
+function companionSauceLabelsForOrder(order) {
+  var present = {};
+  (order && order.items || []).forEach(function(it){
+    if((it.qtyOrdered||0)>0 && COMPANION_SAUCE_LABELS[it.sku]) present[it.sku]=true;
+  });
+  return Object.keys(COMPANION_SAUCE_LABELS).filter(function(sku){ return present[sku]; }).map(function(sku){
+    var sauce=COMPANION_SAUCE_LABELS[sku];
+    return {sku:sauce.sku,name:sauce.name,size:'Sauce bag · Order #'+order.num,qty:1};
+  });
+}
+
 function expandItems(items) {
   // items: [{sku,name,size,qty}] -> flat label list, grouped product by
   // product: name, then variant (size), then sku - so every unit of one
@@ -3630,6 +3649,8 @@ function genLabelsOrder() {
       selectedTotals[it.sku]=(selectedTotals[it.sku]||0)+qty;
       items.push({sku:it.sku,name:it.name,size:it.size,qty:qty});
     });
+    // Sauce is bagged once per order, not once per tray and not reduced by freezer credit.
+    items=items.concat(companionSauceLabelsForOrder(orders[n]));
   });
   // Freezer units were already credited into production. Remove that many labels
   // once per SKU across the whole selected run, never once per order line.
