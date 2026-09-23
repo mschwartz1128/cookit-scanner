@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cook It NJ — Kitchen Scanner v69</title>
+<title>Cook It NJ — Kitchen Scanner v70</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
 :root {
@@ -1204,6 +1204,13 @@ function loadSession() {
       var _p=o.items.reduce(function(s,i){return s+(i.qtyPacked||0);},0);
       var _q=o.items.reduce(function(s,i){return s+(i.qtyOrdered||0);},0);
       if(_p===0 && _q>0){ o.verify={}; o.verifyDone=false; o.spot={}; o.spotChecked=false; o.saucePacked={}; }
+    });
+    // v70: an order fully handed over through Delivered before v70 sat at 0
+    // items / Not Ready and re-pushed Not Ready to Airtable on every sync.
+    // Mark it shipped so the next status sync sends Shipped instead.
+    Object.keys(orders).forEach(function(n){
+      var o=orders[n]; if(!o || o.shipped || o.noAutoShip || !orderFullyDelivered(o)) return;
+      o.shipped=true; o.packed=true; o.shippedByDelivery=true;
     });
     scanCounts = data.scanCounts || {};
     prodHistory = data.prodHistory || [];
@@ -2536,6 +2543,13 @@ function orderPackingItems(n){
   var o=orders[n]; if(!o) return [];
   return (o.items||[]).filter(function(i){return (i.qtyOrdered||0)>0;}).concat(requiredSaucesForOrder(o,n));
 }
+// v70: every line handed over through Delivered (nothing left to send) = the
+// order went out. Partial deliveries still have qtyOrdered left and stay open.
+function orderFullyDelivered(o){
+  if(!o || !o.items || !o.items.length) return false;
+  return o.items.every(function(i){ return (i.qtyOrdered||0)<=0; }) &&
+         o.items.some(function(i){ return (i.qtyDelivered||0)>0; });
+}
 function orderFullyPacked(n){
   var items=orderPackingItems(n);
   return !!items.length && items.every(function(it){ return (it.qtyPacked||0) >= it.qtyOrdered; });
@@ -2723,13 +2737,24 @@ function applyDeliverSelected() {
     }
   });
   if(!names.length){ hideDeliverModal(); return; }
+  // v70: if that was the last of an order, it has gone out - ship it
+  // (same Airtable write as markShipped). Partial deliveries stay open.
+  var shippedNow=[];
+  picked.forEach(function(p){
+    var o=orders[p.num];
+    if(!o || o.shipped || shippedNow.indexOf(p.num)>=0 || !orderFullyDelivered(o)) return;
+    o.shipped=true; o.packed=true; o.shippedByDelivery=true; delete o.noAutoShip;
+    shippedNow.push(p.num);
+    atSetOrderStatus(p.num,'Shipped',0,0,true);
+  });
   saveSession();
   hideDeliverModal();
+  if(shippedNow.length){ document.getElementById('ship-btn-wrap').style.display='none'; document.getElementById('ship-partial-wrap').style.display='none'; renderUnshipBtn(); }
   var _nums=currentOrder.nums||[currentOrder.num];
   document.getElementById('h-items').textContent=currentOrder.items.length+' items'+(_nums.length>1?' across '+_nums.length+' orders':'');
   renderPackList(); updateProgress();
   setTimeout(atUpdateOrderStatuses, 400);
-  showFlash('Delivered: '+names.join(', ')+'. Order #'+ (currentOrder.nums||[currentOrder.num]).join(' + #')+' now shows only what is still remaining.','ok');
+  showFlash('Delivered: '+names.join(', ')+'. '+(shippedNow.length?'Order #'+shippedNow.join(' + #')+' fully delivered - marked Shipped.':'Order #'+ (currentOrder.nums||[currentOrder.num]).join(' + #')+' now shows only what is still remaining.'),'ok');
 }
 
 function markOwedAgain(num, sku) {
@@ -2740,6 +2765,9 @@ function markOwedAgain(num, sku) {
   if(q>it.qtyDelivered) q=it.qtyDelivered;
   it.qtyDelivered-=q;
   it.qtyOrdered+=q;
+  // v70: it was only "shipped" because everything was delivered - now
+  // something is owed again, so it is open again.
+  if(o.shippedByDelivery){ o.shipped=false; o.packed=false; delete o.shippedByDelivery; }
   // put it back on the live list if this order is loaded
   if(currentOrder && (currentOrder.nums||[currentOrder.num]).indexOf(num)>=0){
     var ci=currentOrder.items.find(function(x){return x.sku===sku && (x.orderNum||currentOrder.num)===num;});
@@ -3065,7 +3093,7 @@ function unshipOrder(){
   if(!currentOrder) return;
   var nums=currentOrder.nums||[currentOrder.num];
   if(!confirm('Put Order #'+nums.join(' + #')+' back on the delivery list?\n\nUse this only if it was marked shipped by mistake and has NOT actually gone out. Packing and scans stay as they are.')) return;
-  nums.forEach(function(n){ if(orders[n]) orders[n].shipped=false; });
+  nums.forEach(function(n){ if(orders[n]){ orders[n].shipped=false; if(orders[n].shippedByDelivery){ delete orders[n].shippedByDelivery; orders[n].noAutoShip=true; } } });
   saveSession();
   renderUnshipBtn(); updateProgress();
   setTimeout(atUpdateOrderStatuses, 400);
